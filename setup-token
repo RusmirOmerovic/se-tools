@@ -1,0 +1,17 @@
+#!/bin/bash
+echo "🔐 GitHub Personal Access Token einrichten ..."
+
+read -sp "GitHub Token eingeben (wird lokal gespeichert): " GITHUB_TOKEN
+echo
+
+# Speichern in ~/.bash_profile oder ~/.zshrc je nach Shell
+if [[ $SHELL == *"zsh" ]]; then
+  echo "export GITHUB_TOKEN=\"$GITHUB_TOKEN\"" >> ~/.zshrc
+  source ~/.zshrc
+else
+  echo "export GITHUB_TOKEN=\"$GITHUB_TOKEN\"" >> ~/.bash_profile
+  source ~/.bash_profile
+fi
+
+echo "✅ Token gespeichert. Bitte Terminal neu starten oder 'source'-Befehl ausführen.
+Also -> source ~/.zshrc  # oder source ~/.bashrc"
