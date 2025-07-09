@@ -26,7 +26,7 @@ chmod +x ~/Bash/*.sh
 
 ### 2. Terminal einrichten (einmalig)
 
-Öffne deine `.zshrc` oder `.bashrc` und füge hinzu:
+Öffne deine `.zshrc` oder `.bashrc` mit ls -a zum ansehen, dann nano .zshrc oder .bashrc oder open .zshrc/bashrc und füge hinzu:
 
 ```bash
 export PATH="$HOME/Bash:$PATH"
