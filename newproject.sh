@@ -71,9 +71,12 @@ git commit -m "🆕 Neues Projekt aus Template: $PROJECT_NAME"
 
 # === SCHRITT 3: GitHub-Repo erstellen über API ===
 echo "🌐 Erstelle GitHub-Repository..."
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" \
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  -H "Content-Type: application/json" \
   -d "{\"name\":\"$PROJECT_NAME\", \"private\":false}" \
   "$GITHUB_API/user/repos")
+
 
 if [ "$RESPONSE" = "201" ]; then
   echo "✅ GitHub-Repo erstellt: https://github.com/$USERNAME/$PROJECT_NAME"
