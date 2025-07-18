@@ -46,7 +46,6 @@ if ! check_token; then
     refresh_token
 fi
 
-
 # === EINGABEPRÜFUNG ===
 if [ -z "$1" ]; then
   echo "❌ Fehler: Bitte gib einen Projektnamen an: newproject <projektname>"
@@ -71,13 +70,7 @@ git commit -m "🆕 Neues Projekt aus Template: $PROJECT_NAME"
 
 # === SCHRITT 3: GitHub-Repo erstellen über API ===
 echo "🌐 Erstelle GitHub-Repository..."
-curl -i -H "Authorization: token $GITHUB_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d "{\"name\":\"$PROJECT_NAME\", \"private\":false}" \
-     "$GITHUB_API/user/repos"
-exit 1
-
-
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}"   -H "Authorization: token $GITHUB_TOKEN"   -H "Content-Type: application/json"   -d "{\"name\":\"$PROJECT_NAME\", \"private\":false}"   "$GITHUB_API/user/repos")
 
 if [ "$RESPONSE" = "201" ]; then
   echo "✅ GitHub-Repo erstellt: https://github.com/$USERNAME/$PROJECT_NAME"
