@@ -41,7 +41,7 @@ Dann:
 source ~/.zshrc  # oder ~/.bashrc
 ```
 
-### 3. Token einrichten
+### 3. GitHub Token + Pages automatisch einrichten ⚙️
 
 ```bash
 cd ~/Bash

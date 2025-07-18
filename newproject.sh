@@ -6,6 +6,47 @@ USERNAME="RusmirOmerovic"
 GITHUB_API="https://api.github.com"
 PROJEKTPFAD="$(pwd)"
 
+# === TOKEN HANDLING ===
+CONFIG_DIR="$HOME/.config/se-tools"
+TOKEN_FILE="$CONFIG_DIR/gh_token.txt"
+MAX_AGE=80
+
+mkdir -p "$CONFIG_DIR"
+chmod 700 "$CONFIG_DIR"
+
+check_token() {
+    if [[ -f "$TOKEN_FILE" ]]; then
+        created=$(head -n1 "$TOKEN_FILE")
+        token=$(tail -n1 "$TOKEN_FILE")
+        age=$(( ( $(date +%s) - created ) / 86400 ))
+        if (( age < MAX_AGE )); then
+            GITHUB_TOKEN="$token"
+            echo "🔐 Token gefunden ($age Tage alt)"
+            return 0
+        else
+            echo "⚠️  Token ist $age Tage alt. Bitte neues eingeben."
+        fi
+    else
+        echo "❌ Kein gespeichertes Token vorhanden."
+    fi
+    return 1
+}
+
+refresh_token() {
+    echo -n "🔑 Neues GitHub-Token eingeben: "
+    read -s GITHUB_TOKEN
+    echo
+    now=$(date +%s)
+    echo -e "$now\n$GITHUB_TOKEN" > "$TOKEN_FILE"
+    chmod 600 "$TOKEN_FILE"
+    echo "✅ Neues Token gespeichert."
+}
+
+if ! check_token; then
+    refresh_token
+fi
+
+
 # === EINGABEPRÜFUNG ===
 if [ -z "$1" ]; then
   echo "❌ Fehler: Bitte gib einen Projektnamen an: newproject <projektname>"
