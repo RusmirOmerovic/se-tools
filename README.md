@@ -79,7 +79,8 @@ source ~/.bashrc
 | `pushrepo`    | Commit + Push der aktuellen Änderungen            |
 | `merge-test`  | Merged `develop` → `testing`                      |
 | `merge-main`  | Merged `testing` → `main` und löscht preview.yml |
-| `delete-repo` | Löscht ein lokales Projektverzeichnis sicher      |
+| `delete-repo` | Löscht ein lokales + remote Projektverzeichnis sicher |
+| `sync-repo`   | einheitlicher Inhalt aller Branches -> synchronisieren |
 
 Alle Befehle funktionieren **ohne `.sh`**, sobald der Pfad gesetzt ist.
 
