@@ -1,89 +1,99 @@
-# 🧰 se-tools – GitHub Bash-Toolset für SE-Projekte
+# 🧰 se-tools – Bash-Tools für Software-Engineering-Projekte
 
-Mit diesem Repository richtest du dein Terminal so ein, dass du in wenigen Sekunden 
-neue GitHub-Projekte aufsetzen, pushen, mergen und verwalten kannst – inkl. automatischer GitHub Pages-Veröffentlichung.
-
----
-
-## 🚀 Funktionen
-
-✅ Neues Projekt aus Template anlegen (`newproject beispielProjekt`)  
-✅ Automatischer Commit & Push (`push`)  
-✅ Merge-Workflows: `develop ➝ testing ➝ main` (`mergetest`, `mergemain`)  
-✅ GitHub Pages Deploy inklusive (für main & testing Branch)  
-✅ Token-Verwaltung mit Ablaufprüfung (80 Tage)  
-✅ Löschen von lokalen & GitHub-Repositories (`deleterepo`)  
-✅ Schnellstart in unter 5 Minuten
+Dieses Repository enthält nützliche Bash-Tools, um häufige Arbeitsschritte in GitHub-Projekten zu automatisieren.  
+Du kannst damit z. B. neue Repos erstellen, automatisch pushen oder Branches zusammenführen.
 
 ---
 
-## ⚙️ Setup in 3 Schritten
+## ✅ Installation (einmalig)
 
-### 1. Tools klonen & aktivieren
+### 1. Repository klonen
+
+Öffne dein Terminal und führe aus:
 
 ```bash
-git clone https://github.com/RusmirOmerovic/se-tools.git ~/Bash
-chmod +x ~/Bash/*.sh
+git clone https://github.com/RusmirOmerovic/se-tools.git
 ```
 
-### 2. Terminal einrichten (einmalig)
+### 2. Ordnerpfad zur Shell-Konfiguration hinzufügen
 
-Öffne deine `.zshrc` oder `.bashrc` (z.B. mit open .zshrc/.bashrc) und füge am Ende folgende Zeilen hinzu:
+Damit du die Befehle (wie `newproject`, `pushrepo`, usw.) **überall verwenden kannst**, musst du den Pfad zum `se-tools` Ordner in deine Shell-Konfigurationsdatei einfügen.
+
+#### So geht’s:
+
+1. **Wechsle ins Home-Verzeichnis:**
 
 ```bash
-export PATH="$HOME/Bash:$PATH"
-
-alias newproject="bash ~/Bash/newproject.sh"
-alias push="bash ~/Bash/pushrepo.sh"
-alias deleterepo="bash ~/Bash/delete_repo.sh"
-alias mergetest="bash ~/Bash/merge-test.sh"
-alias mergemain="bash ~/Bash/merge-main.sh"
+cd ~
 ```
 
-Dann:
+2. **Öffne deine Konfigurationsdatei im Editor:**
+
+- Für Zsh (Standard bei macOS):
+
 ```bash
-source ~/.zshrc  # oder ~/.bashrc
+nano .zshrc
 ```
 
-### 🔐 GitHub Token – automatisch verwaltet
+- Für Bash (z. B. bei Linux oder WSL):
 
-Beim ersten Aufruf von `newproject` wirst du automatisch nach deinem GitHub Token gefragt.  
-Das Token wird sicher in `~/.config/se-tools/gh_token.txt` gespeichert (Zugriff nur für dich – `chmod 600`).
+```bash
+nano .bashrc
+```
 
-➡️ Gültigkeit: 80 Tage – danach wirst du zur Eingabe eines neuen Tokens aufgefordert.
-👉 Du findest dein Token in deinem GitHub-Account unter Settings → Developer Settings → Personal Access Tokens. 
+3. **Füge ganz unten folgende Zeile ein:**  
+*(Passe den Pfad an deinen Speicherort an)*
+
+```bash
+export PATH="$HOME/Pfad/zum/se-tools:$PATH"
+```
+
+📌 Beispiel:
+
+```bash
+export PATH="$HOME/Documents/code/se-tools:$PATH"
+```
+
+4. **Speichern und schließen:**  
+Drücke `CTRL + O`, dann `Enter`, dann `CTRL + X`.
+
+5. **Änderungen aktivieren:**
+
+```bash
+source ~/.zshrc
+```
+
+oder
+
+```bash
+source ~/.bashrc
+```
 
 ---
 
-## 📦 Projekt starten
+## 🚀 Verfügbare Befehle
 
-```bash
-newproject demo
-cd demo
-push
-```
+| Befehl        | Beschreibung                                      |
+|---------------|---------------------------------------------------|
+| `newproject`  | Erstellt ein neues GitHub-Repository inkl. Setup |
+| `pushrepo`    | Commit + Push der aktuellen Änderungen            |
+| `merge-test`  | Merged `develop` → `testing`                      |
+| `merge-main`  | Merged `testing` → `main` und löscht preview.yml |
+| `delete-repo` | Löscht ein lokales Projektverzeichnis sicher      |
 
-➡️ Deine Live-Vorschau findest du unter:  
-`https://<dein-user>.github.io/<projektname>/`
-Beispiel: https://rusmiromerovic.github.io/demo
-
----
-
-## 📘 Mehr Details?
-
-👉 [setup.md](setup.md)
+Alle Befehle funktionieren **ohne `.sh`**, sobald der Pfad gesetzt ist.
 
 ---
 
-## 🧑‍💻 Getestet mit
+## ℹ️ Hinweise
 
-- macOS mit zsh
-- Linux (Ubuntu)
-- GitHub CLI & Pages
-- Git Bash (Windows)
+- Du kannst die Tools jederzeit erweitern oder anpassen.
+- Wenn du möchtest, kannst du auch eine `README.md` im Hauptprojekt verlinken.
+- Forks und Verbesserungen sind willkommen!
 
 ---
 
 ## 📄 Lizenz
 
-MIT – frei nutzbar, anpassbar und erweiterbar.
+MIT License
+
