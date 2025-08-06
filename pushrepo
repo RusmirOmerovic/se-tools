@@ -12,6 +12,23 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 echo -e "${CYAN}📁 Projekt: $PROJECT_NAME  |  🌿 Branch: $BRANCH${NC}"
 
+# === Sicherheits-Check: Verhindere versehentlichen Push sensibler Dateien ===
+SENSITIVE_PATTERNS=(".env" ".env.local" ".DS_Store" "*.key" "secrets/" ".supabase/" "*.pem")
+
+echo "🔍 Sicherheits-Check vor Push..."
+
+for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+  if git diff --cached --name-only | grep -qE "$pattern"; then
+    echo "🚫 Sicherheitswarnung: Du hast eine sensible Datei zum Commit vorgemerkt: $pattern"
+    echo "Bitte entferne sie zuerst mit: git rm --cached <dateiname>"
+    echo "Push abgebrochen."
+    exit 1
+  fi
+done
+
+echo "✅ Keine sensiblen Dateien erkannt – fahre mit Push fort."
+
+
 # Lock-Dateien prüfen und löschen
 LOCKS=(".git/index.lock" ".git/ORIG_HEAD.lock" ".git/refs/remotes/origin/$BRANCH.lock")
 for lock in "${LOCKS[@]}"; do
