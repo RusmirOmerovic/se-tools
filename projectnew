@@ -86,6 +86,28 @@ for entry in ".env" ".DS_Store" "node_modules"; do
 done
 rm -rf .DS_Store node_modules > /dev/null 2>&1
 
+# === SICHERHEIT: Prüfe, ob .env außerhalb ignoriert wird ===
+ENV_PATH="../.env"
+PARENT_GITIGNORE="../.gitignore"
+
+if [[ -f "$ENV_PATH" ]]; then
+  if [[ -f "$PARENT_GITIGNORE" ]]; then
+    if ! grep -qxF ".env" "$PARENT_GITIGNORE"; then
+      echo "🚨 WARNUNG: Du hast eine .env-Datei in '$ENV_PATH', aber sie wird nicht ignoriert!"
+      echo "👉 Bitte füge '.env' zur Datei '$PARENT_GITIGNORE' hinzu, um sie zu schützen."
+      echo "⚠️ Push wird abgebrochen."
+      exit 1
+    fi
+  else
+    echo "🚨 WARNUNG: Es existiert eine .env-Datei im übergeordneten Verzeichnis,"
+    echo "aber keine .gitignore dort – deine Umgebungsvariablen könnten geleakt werden!"
+    echo "👉 Bitte erstelle '$PARENT_GITIGNORE' mit dem Eintrag '.env'."
+    echo "⚠️ Push wird abgebrochen."
+    exit 1
+  fi
+fi
+
+
 git add .gitignore
 git commit -m "🛡️ Ergänze .gitignore für Sicherheit und Ordnung"
 
@@ -122,10 +144,12 @@ if [[ -z "$USER_ID" || "$USER_ID" == "null" ]]; then
 fi
 
 # === SCHRITT 7: Projekt registrieren ===
+
 echo "🧬 Registriere Projekt in Supabase..."
+PROJECT_DESC="${2:-"Neues SE-Projekt erstellt via Script"}"
 PROJECT_JSON=$(jq -n \
   --arg title "$PROJECT_NAME" \
-  --arg description "Neues SE-Projekt erstellt via Script" \
+  --arg description "$PROJECT_DESC" \
   --arg status "in Planung" \
   --arg start_date "$(date +%F)" \
   --arg end_date "" \
@@ -141,6 +165,11 @@ PROJECT_RESPONSE=$(curl -s \
 
 # ID extrahieren für Metadaten-Eintrag
 PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r '.id')
+
+if [[ -z "$PROJECT_ID" || "$PROJECT_ID" == "null" ]]; then
+  echo "❌ Fehler: Projekt konnte nicht registriert werden!"
+  exit 1
+fi
 
 # === SCHRITT 8: Metadaten als erster Meilenstein ===
 echo "🧱 Erstelle initialen Meilenstein (Metadaten)..."
@@ -164,3 +193,5 @@ if command -v code &> /dev/null; then
 fi
 
 echo "🎉 Projekt '$PROJECT_NAME' ist bereit! (inkl. Frontend-Eintrag, GitHub-Repo, CI/CD)"
+echo "🔗 GitHub: https://github.com/$USERNAME/$PROJECT_NAME"
+echo "🔗 Frontend-Dashboard: https://frontend-se-cyan.vercel.app"
