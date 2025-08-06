@@ -13,7 +13,8 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo -e "${CYAN}📁 Projekt: $PROJECT_NAME  |  🌿 Branch: $BRANCH${NC}"
 
 # === Sicherheits-Check: Verhindere versehentlichen Push sensibler Dateien ===
-SENSITIVE_PATTERNS=(".env" ".env.local" ".DS_Store" "*.key" "secrets/" ".supabase/" "*.pem")
+SENSITIVE_PATTERNS=(".*\.env" ".*\.env\.local" ".*\.DS_Store" ".*\.key" "secrets/" ".*\.supabase/" ".*\.pem")
+
 
 echo "🔍 Sicherheits-Check vor Push..."
 
