@@ -68,18 +68,17 @@ git init
 git add .
 git commit -m "🆕 Neues Projekt aus Template: $PROJECT_NAME"
 
-# === SCHRITT 3: .gitignore anlegen/ergänzen ===
-echo "🛡️  Erstelle oder ergänze .gitignore..."
+# === SCHRITT 3: .gitignore + GitHub-Repo erstellen über API ===
+echo "🛡️  Erstelle oder ergänze .gitignore (light)..."
 touch .gitignore
 
 for entry in ".env" ".DS_Store" "node_modules"; do
   grep -qxF "$entry" .gitignore || echo "$entry" >> .gitignore
 done
 
-# Optional: lokale Reste löschen
-rm -rf .DS_Store node_modules > /dev/null 2>&1
+git add .gitignore
+git commit -m "🛡️ Ergänze .gitignore für Standardschutz"
 
-# === SCHRITT 4: GitHub-Repo erstellen über API ===
 echo "🌐 Erstelle GitHub-Repository..."
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}"   -H "Authorization: token $GITHUB_TOKEN"   -H "Content-Type: application/json"   -d "{\"name\":\"$PROJECT_NAME\", \"private\":false}"   "$GITHUB_API/user/repos")
 
@@ -90,16 +89,15 @@ else
   exit 1
 fi
 
-# === SCHRITT 5: Remote setzen und pushen ===
+# === SCHRITT 4: Remote setzen und pushen ===
 git remote add origin "https://github.com/$USERNAME/$PROJECT_NAME.git"
 git branch -M main
-git add .gitignore
-git commit -m "🛡️ Ergänze .gitignore für Sicherheit und Ordnung"
 git push -u origin main
 
-# === SCHRITT 6: Editor öffnen ===
+# === SCHRITT 5: Editor öffnen ===
 if command -v code &> /dev/null; then
   code .
 fi
 
 echo "🎉 Projekt '$PROJECT_NAME' wurde lokal erstellt und auf GitHub veröffentlicht!"
+
