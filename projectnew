@@ -65,6 +65,19 @@ if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_SERVICE_ROLE" || -z "$SUPABASE_USER_MA
   exit 1
 fi
 
+# === TEAMMITGLIEDER ABFRAGEN ===
+echo -n "👥 Namen der Teammitglieder (z. B. Max Muster, Anna Beispiel, ...): "
+read TEAM_NAMES
+
+# === Fälligkeitsdatum abfragen ===
+echo -n "📅 Fälligkeitsdatum (Format: YYYY-MM-DD): "
+read DUE_DATE
+
+# === MEILENSTEIN STATUS ABFRAGEN ===
+echo -n "📌 Der Team-Status (z. B. in Vorbereitung, bereit, wird organisiert, etc.): "
+read MILESTONE_STATUS
+
+
 # === SCHRITT 1: Verzeichnis erstellen ===
 echo "📦 Erstelle Projekt: $PROJECT_NAME in $ZIELORDNER ..."
 mkdir -p "$ZIELORDNER"
@@ -148,23 +161,25 @@ fi
 echo "🧬 Registriere Projekt in Supabase..."
 PROJECT_DESC="${2:-"Neues SE-Projekt erstellt via Script"}"
 PROJECT_JSON=$(jq -n \
-  --arg title "$PROJECT_NAME" \
-  --arg description "$PROJECT_DESC" \
-  --arg status "in Planung" \
-  --arg start_date "$(date +%F)" \
-  --arg end_date "" \
+  --arg name "$PROJECT_NAME" \
+  --arg startdatum "$(date +%F)" \
   --arg user_id "$USER_ID" \
-  '{title: $title, description: $description, status: $status, start_date: $start_date, end_date: $end_date, user_id: $user_id}')
+  --arg status "angemeldet" \
+  '{name: $name, status: $status, startdatum: $startdatum, owner_id: $user_id}')
 
 PROJECT_RESPONSE=$(curl -s \
   -H "apikey: $SUPABASE_SERVICE_ROLE" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
   -H "Content-Type: application/json" \
+  -H "Prefer: return=representation" \
   -d "$PROJECT_JSON" \
   "$SUPABASE_URL/rest/v1/projects")
+# Ausgabe des Projekt-Responses
+  echo "$PROJECT_RESPONSE" | jq
+
 
 # ID extrahieren für Metadaten-Eintrag
-PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r '.id')
+PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r '.[0].id')
 
 if [[ -z "$PROJECT_ID" || "$PROJECT_ID" == "null" ]]; then
   echo "❌ Fehler: Projekt konnte nicht registriert werden!"
@@ -175,10 +190,11 @@ fi
 echo "🧱 Erstelle initialen Meilenstein (Metadaten)..."
 MILESTONE_JSON=$(jq -n \
   --arg project_id "$PROJECT_ID" \
-  --arg title "Team: Rusmir, Max, Lisa" \
-  --arg details "https://github.com/$USERNAME/$PROJECT_NAME | Vision: Lernportal" \
-  --arg date "$(date +%F)" \
-  '{project_id: $project_id, title: $title, details: $details, date: $date}')
+  --arg title "Team: $TEAM_NAMES"  \
+  --arg description "https://github.com/$USERNAME/$PROJECT_NAME | $PROJECT_DESC" \
+  --arg due_date "$DUE_DATE" \
+  --arg status "$MILESTONE_STATUS" \
+  '{project_id: $project_id, title: $title, description: $description, due_date: $due_date, status: $status}')
 
 curl -s \
   -H "apikey: $SUPABASE_SERVICE_ROLE" \
