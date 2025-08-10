@@ -138,4 +138,4 @@ PRs und Issues sind willkommen. Bitte halte dich an die Sicherheitsleitlinien (k
 
 ## Lizenz
 
-*(Füge hier dein gewünschtes Lizenzmodell ein, z. B. MIT.)*
+**MIT-Lizenz**
