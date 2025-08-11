@@ -1,25 +1,33 @@
 #!/bin/bash
 # merge-test.sh
-
-# Merge develop -> testing
+# Merge develop -> testing mit Sicherheits-Checks
 
 set -e
 
+# 1. Aktuelle Branches holen
+git fetch origin --prune
+
+# 2. Prüfen, ob wir auf develop sind
 if [[ $(git branch --show-current) != "develop" ]]; then
-  echo "❗ Befindest du dich im Branch 'develop'? wenn nicht: 'git checkout develop' eingeben."
+  echo "❗ Du musst auf 'develop' sein! Nutze: git checkout develop"
   exit 1
 fi
 
-# Push sicherstellen
-push
+# 3. Prüfen, ob ungespeicherte Änderungen da sind
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "❗ Es gibt uncommitted Changes – bitte committen oder stashen."
+  exit 1
+fi
 
-# Wechseln
+# 4. Sicher pushen
+pushrepo   # Falls du lieber den Standard 'pushrepo' Flow nutzen willst
+
+# 5. Branch wechseln & mergen
 git checkout testing
-
 git merge develop --no-ff -m "🔀 Merge develop into testing"
 
+# 6. Pushen & zurück zu develop
 git push origin testing
-
 git checkout develop
 
 echo "✅ Merge develop → testing abgeschlossen."

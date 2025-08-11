@@ -1,32 +1,36 @@
 #!/bin/bash
+# deleterepo.sh – Lokal + GitHub-Repo löschen
 
-# Farben
+set -e
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Repository-Name (z. B. test1)
-repoName=$1
-
-if [ -z "$repoName" ]; then
-    echo -e "${RED}❗️Bitte gib den Repository-Namen an (z. B. delete_repo.sh test1)${NC}"
+if [ -z "$1" ]; then
+    echo -e "${RED}❗ Bitte Repository-Namen angeben (z. B. deleterepo test1)${NC}"
     exit 1
 fi
+repoName=$1
 
-# Fragen zur lokalen Löschung
-read -r -p "📁 Lokales Verzeichnis ~/Documents/code/bash/$repoName löschen? (j/n): " deleteLocal
-if [[ "$deleteLocal" == [Jj] ]]; then
-    rm -rf ~/Documents/code/bash/"$repoName"
-    echo -e "${GREEN}✅ Lokal gelöscht: $repoName${NC}"
-else
-    echo -e "${NC}⏭ Lokal beibehalten"
+# Lokale Löschung
+read -r -p "📁 Lokales Repo '$repoName' löschen? (j/n): " deleteLocal
+if [[ "$deleteLocal" =~ ^[Jj]$ ]]; then
+    repoPath=$(find "$HOME" -type d -name "$repoName" 2>/dev/null | head -n 1)
+    if [ -n "$repoPath" ]; then
+        rm -rf "$repoPath"
+        echo -e "${GREEN}✅ Lokal gelöscht: $repoPath${NC}"
+    else
+        echo -e "${RED}❌ Lokales Verzeichnis nicht gefunden.${NC}"
+    fi
 fi
 
-# Fragen zur GitHub-Löschung
-read -r -p "🌐 GitHub Repo 'RusmirOmerovic/$repoName' löschen? (j/n): " deleteRemote
-if [[ "$deleteRemote" == [Jj] ]]; then
-    gh repo delete RusmirOmerovic/"$repoName"
-    echo -e "${GREEN}✅ GitHub-Repository gelöscht: $repoName${NC}"
-else
-    echo -e "${NC}⏭ GitHub-Repo bleibt bestehen"
+# Remote-Löschung
+read -r -p "🌐 GitHub Repo '$repoName' löschen? (j/n): " deleteRemote
+if [[ "$deleteRemote" =~ ^[Jj]$ ]]; then
+    if command -v gh &>/dev/null; then
+        gh repo delete "$repoName" --yes
+        echo -e "${GREEN}✅ GitHub-Repo gelöscht: $repoName${NC}"
+    else
+        echo -e "${RED}❌ GitHub CLI (gh) nicht installiert.${NC}"
+    fi
 fi
