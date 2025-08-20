@@ -21,7 +21,9 @@ export PATH="$HOME/se-tools:$PATH"
 export GH_TOKEN="$(gh auth token)"
 export GITHUB_TOKEN="$GH_TOKEN"
 ```
--> control(^) + O - Speichern ; Enter - Bestätigen ; control(^) + X - Schließen 
+-> control(^) + O - **Speichern** ; Enter - **Bestätigen** ; control(^) + X - **Schließen**
+
+
 -> damit ist deine Konfiguration im Hintergrund schon richtig vorbereitet für alle weiteren Vorgänge! ✅
 
 
