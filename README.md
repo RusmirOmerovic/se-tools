@@ -34,16 +34,6 @@ export GITHUB_TOKEN="$GH_TOKEN"
 
 👉 **Alle Details & Anleitungen findest du im [Wiki](https://github.com/RusmirOmerovic/se-tools/wiki).**
 
----
-
-## Inhalt des Repos
-
-- `newproject` – neues Projekt aus Template anlegen und auf GitHub veröffentlichen  
-- `projectnew` – wie `newproject`, zusätzlich Anlage im Supabase-Backend (Projekte & Milestones)  
-- `pushrepo` – sicherer Commit + Push mit Checks (verhindert versehentliches Pushen von Secrets)  
-- `deleterepo` – löscht ein Projekt lokal und remote auf GitHub  
-- `merge-main` – automatischer Merge von Feature-Branch in `main`  
-- `merge-test` – automatischer Merge in Test-Branch  
 
 ---
 
@@ -76,7 +66,7 @@ source ~/.zshrc
 
 2. Neues Projekt starten:
    ```bash
-   newproject --name demo-app --private
+   newproject meinProjekt
    ```
 
 3. Code committen & pushen:
