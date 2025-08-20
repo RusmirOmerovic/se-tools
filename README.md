@@ -4,27 +4,28 @@
 Es richtet sich an DevOps-/DevSecOps-Workflows mit GitHub.
 
 ## Tipp:
-öffne deine Konfigurationsdatei .zshrc/.bashrc im Terminal mit nano .zshrc/.bashrc, danach füge die Pfade für die Bash-Befehle sowie die 
-GitHub-Token ein. 
+öffne deine Konfigurationsdatei .zshrc/.bashrc im Terminal mit nano .zshrc/.bashrc und prüfe die enthaltenen Pfade. 
 Das sollte dann ungefähr so aussehen: 
 ```
-# --------------------------------------------------------------------
-# Custom PATHs
-# --------------------------------------------------------------------
+#se-tools global Befehle ausführen
 export PATH="$HOME/se-tools:$PATH"
 
-# --------------------------------------------------------------------
-# GitHub CLI Token Handling (via gh auth token)
-# GH_TOKEN = wird dynamisch von gh erzeugt
-# GITHUB_TOKEN = wird von Skripten (z. B. newproject) erwartet
-# --------------------------------------------------------------------
-export GH_TOKEN="$(gh auth token)"
-export GITHUB_TOKEN="$GH_TOKEN"
 ```
+Falls nicht, trage das genau so ein!
+
 -> control(^) + O - **Speichern** ; Enter - **Bestätigen** ; control(^) + X - **Schließen**
 
 
--> damit ist deine Konfiguration im Hintergrund schon richtig vorbereitet für alle weiteren Vorgänge! ✅
+-> die Einrichtung ist abgeschlossen! ✅
+
+-> Beim Erstellen deines ersten Projekts mit "newproject" wirst du einmalig aufgefordert deinen Token einzugeben. 
+   Dazu gehts du in deinem GitHub-Account auf settings/token 
+   -> "classic tokens" & Rechte: repo, workflow, read:org, 
+   -> Token generieren, kopieren und im Terminal einfügen, dann 'Enter' drücken
+
+   FERTIG ☑️ - das Token wird versteckt in einer Hintergrund-Datei gespeichert (~/.config/se-tools/gh_token.txt) 
+   ⏳ die Gültigkeitsdauer wird ständig überprüft und vor dem Ablauf von 90 Tagen, wirst du erneut aufgefordert 
+      das Token zu erneuern. Dann wiederholst du den Prozess und kopierst wieder das Token in die Abfrage! 
 
 
 
