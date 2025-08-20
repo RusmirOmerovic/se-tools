@@ -1,43 +1,42 @@
 #!/bin/bash
 # newproject.sh – Neues Projekt aus Template erstellen + GitHub-Repo anlegen
+# Sicherheit: GitHub Token wird im macOS Keychain gespeichert, nicht im Klartext
 
 set -e
+
+# Farben für Ausgaben
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Konfiguration
 TEMPLATE_REPO="https://github.com/RusmirOmerovic/html-template-se.git"
 USERNAME="RusmirOmerovic"
 GITHUB_API="https://api.github.com"
-CONFIG_DIR="$HOME/.config/se-tools"
-TOKEN_FILE="$CONFIG_DIR/gh_token.txt"
-MAX_AGE=80
+KEYCHAIN_SERVICE="se-tools-gh-token"   # eindeutiger Name für den Keychain-Eintrag
 
-mkdir -p "$CONFIG_DIR" && chmod 700 "$CONFIG_DIR"
-
-check_token() {
-    if [[ -f "$TOKEN_FILE" ]]; then
-        created=$(head -n1 "$TOKEN_FILE")
-        token=$(tail -n1 "$TOKEN_FILE")
-        age=$(( ( $(date +%s) - created ) / 86400 ))
-        if (( age < MAX_AGE )); then
-            GITHUB_TOKEN="$token"
-            return 0
-        fi
+# -----------------------------------------------------------
+# Funktion: Token aus Keychain laden oder neuen speichern
+# -----------------------------------------------------------
+get_github_token() {
+    # Prüfen ob ein Token in der Keychain existiert
+    if security find-generic-password -s "$KEYCHAIN_SERVICE" >/dev/null 2>&1; then
+        # Falls vorhanden → auslesen (-w = nur Passwort/Token ausgeben)
+        GITHUB_TOKEN=$(security find-generic-password -s "$KEYCHAIN_SERVICE" -w)
+    else
+        # Falls kein Token vorhanden → Benutzer nach neuem Token fragen
+        read -s -p "🔑 Neues GitHub-Token: " GITHUB_TOKEN
+        echo
+        # Im Keychain speichern (-U = falls schon existiert, überschreiben)
+        security add-generic-password -a "$USER" -s "$KEYCHAIN_SERVICE" -w "$GITHUB_TOKEN" -U
+        echo -e "${CYAN}💾 Token wurde sicher im macOS Keychain gespeichert.${NC}"
     fi
-    return 1
 }
 
-refresh_token() {
-    read -s -p "🔑 Neues GitHub-Token: " GITHUB_TOKEN
-    echo
-    echo -e "$(date +%s)\n$GITHUB_TOKEN" > "$TOKEN_FILE"
-    chmod 600 "$TOKEN_FILE"
-}
-
-check_token || refresh_token
-
+# -----------------------------------------------------------
+# Projektnamen prüfen
+# -----------------------------------------------------------
 if [ -z "$1" ]; then
     echo -e "${RED}❌ Projektnamen angeben!${NC}"
     exit 1
@@ -51,14 +50,27 @@ if [ -d "$ZIELORDNER" ]; then
     exit 1
 fi
 
-# Klonen
+# Token sicher laden
+get_github_token
+
+# -----------------------------------------------------------
+# Projekt erstellen
+# -----------------------------------------------------------
+
+# Template klonen
 git clone "$TEMPLATE_REPO" "$ZIELORDNER"
 cd "$ZIELORDNER"
+
+# Git-Init neu starten
 rm -rf .git && git init
-touch .gitignore && echo -e ".env\n.DS_Store\nnode_modules" > .gitignore
+
+# .gitignore anlegen
+echo -e ".env\n.DS_Store\nnode_modules" > .gitignore
+
+# Erster Commit
 git add . && git commit -m "🆕 Neues Projekt: $PROJECT_NAME"
 
-# GitHub Repo
+# GitHub Repo erstellen via API
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
     -H "Authorization: token $GITHUB_TOKEN" \
     -H "Content-Type: application/json" \
@@ -70,6 +82,7 @@ if [ "$RESPONSE" != "201" ]; then
     exit 1
 fi
 
+# Remote hinzufügen & Push
 git remote add origin "https://github.com/$USERNAME/$PROJECT_NAME.git"
 git branch -M main
 git push -u origin main
