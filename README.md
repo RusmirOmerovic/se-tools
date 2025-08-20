@@ -5,7 +5,7 @@ Es richtet sich an DevOps-/DevSecOps-Workflows mit GitHub.
 
 ## Tipp:
 öffne deine Konfigurationsdatei .zshrc/.bashrc im Terminal mit nano .zshrc/.bashrc und prüfe die enthaltenen Pfade. 
-Das sollte dann ungefähr so aussehen: 
+Der Pfad für die Befehle von se-tools sollte so aussehen: 
 ```
 #se-tools global Befehle ausführen
 export PATH="$HOME/se-tools:$PATH"
@@ -19,8 +19,8 @@ Falls nicht, trage das genau so ein!
 -> die Einrichtung ist abgeschlossen! ✅
 
 -> Beim Erstellen deines ersten Projekts mit "newproject" wirst du einmalig aufgefordert deinen Token einzugeben. 
-   Dazu gehts du in deinem GitHub-Account auf settings/token 
-   -> "classic tokens" & Rechte: repo, workflow, read:org, 
+   Dazu gehts du in deinem GitHub-Account auf settings/developer-settings/generate-new-token 
+   -> "classic tokens" & Rechte: repo, workflow, read:org, delete_repo
    -> Token generieren, kopieren und im Terminal einfügen, dann 'Enter' drücken
 
    FERTIG ☑️ - das Token wird versteckt in einer Hintergrund-Datei gespeichert (~/.config/se-tools/gh_token.txt) 
