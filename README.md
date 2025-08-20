@@ -23,7 +23,13 @@ Falls nicht, trage das genau so ein!
    -> "classic tokens" & Rechte: repo, workflow, read:org, delete_repo
    -> Token generieren, kopieren und im Terminal einfügen, dann 'Enter' drücken
 
-   FERTIG ☑️ - das Token wird versteckt in einer Hintergrund-Datei gespeichert (~/.config/se-tools/gh_token.txt) 
+   FERTIG ☑️ - das Token wird versteckt in einer Hintergrund-Datei verschlüsselt gespeichert (~/Library/Keychains/)
+               Token lesen mittels Passwort mit Bash-Befehl im Terminal:
+               ```
+               security find-generic-password -s se-tools-gh-token -w
+               ```
+
+
    ⏳ die Gültigkeitsdauer wird ständig überprüft und vor dem Ablauf von 90 Tagen, wirst du erneut aufgefordert 
       das Token zu erneuern. Dann wiederholst du den Prozess und kopierst wieder das Token in die Abfrage! 
 
