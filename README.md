@@ -1,141 +1,220 @@
 # se-tools
 
-**se-tools** ist ein leichtgewichtiges Tool‑Set aus Bash‑Skripten, um neue Projekte in Sekunden anzulegen, sicher zu pushen, Repos zu löschen und standardisierte Merges/Deploys durchzuführen. Es richtet sich an DevOps‑/DevSecOps‑Workflows mit GitHub.
-
-> **Kurzfassung:** `newproject` erzeugt ein neues Repo aus einer Template‑Vorlage, `pushrepo` pusht sicher mit Checks, `deleterepo` räumt lokal/remote auf, `merge-main`/`merge-test` automatisieren Merges. Optional integriert `projectnew` dein Projekt zusätzlich in Supabase (Projekte & Meilensteine).
+Kleine Bash-Toolchain zur schnellen Projektinitialisierung, Verwaltung von Repositories und Alltags-Tasks mit Git/GitHub.
 
 ---
 
-## Inhalt des Repos
-
-- `newproject` – neues Projekt aus Template anlegen und auf GitHub veröffentlichen
-- `projectnew` – wie `newproject`, zusätzlich Anlage im Supabase‑Backend (Projekte & Milestones)
-- `pushrepo` – sicherer Commit/Push inkl. Check auf sensible Dateien und `git pull --rebase`
-- `deleterepo` – lokales Verzeichnis entfernen und GitHub‑Repo löschen (per `gh`)
-- `merge-main` – Merge **testing → main** (Release auf Produktion)
-- `merge-test` – Merge **develop → testing** (Staging aktualisieren)
-- `.gitignore` – Standard‑Ignorierregeln für Node/macOS/Env‑Files
-
-> Hinweis: Die Skripte verwenden ANSI‑Farben und Emojis für klare CLI‑Rückmeldungen.
+## Inhalt
+- [Voraussetzungen](#voraussetzungen)
+- [Installation](#installation)
+- [Entwicklungsumgebung Setup (macOS Beispiel)](#entwicklungsumgebung-setup-macos-beispiel)
+- [Authentifizierung](#authentifizierung)
+  - [Option A – GitHub Login über gh (empfohlen)](#option-a--github-login-über-gh-empfohlen)
+  - [Option B – Personal Access Token (PAT) als Fallback/CI](#option-b--personal-access-token-pat-als-fallbackci)
+- [Sicherheitshinweise](#sicherheitshinweise)
+- [Verwendung der Skripte](#verwendung-der-skripte)
+- [Beispiel: newproject Workflow](#beispiel-newproject-workflow)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Voraussetzungen
-
-- **Bash** (getestet ab Bash 4)
-- **git** (inkl. gültiger globaler User‑Konfiguration)
-- **GitHub CLI `gh`** (für Repo‑Löschen & ggf. Auth)
-- **curl**
-- **jq** (für JSON‑Operationen in API‑Calls, empfohlen)
-- Optional für Editor‑Start: **VS Code** (`code` im PATH)
-- Optional (für `projectnew`): **SUPABASE_URL** und **SUPABASE_SERVICE_ROLE** als Umgebungsvariablen
+- macOS oder Linux mit:
+  - `bash` ≥ 5
+  - `git` (≥ 2.40)
+  - **GitHub CLI** `gh` (≥ 2.70)
+- Optional: `curl`, `jq`, `fzf`
 
 ---
 
-## Installation / Nutzung
+## Installation
 
-1. **Repository klonen**
-   ```bash
-   git clone https://github.com/RusmirOmerovic/se-tools.git
-   cd se-tools
-   ```
+```bash
+# Repository klonen
+git clone https://github.com/RusmirOmerovic/se-tools.git
+cd se-tools
 
-2. **Skripte ausführbar machen**
-   ```bash
-   chmod +x newproject projectnew pushrepo deleterepo merge-main merge-test
-   ```
+# Skripte ausführbar machen
+chmod +x ./bin/*
 
-3. **(Optional) ins PATH aufnehmen**
-   ```bash
-   mkdir -p ~/.local/bin
-   cp newproject projectnew pushrepo deleterepo merge-main merge-test ~/.local/bin/
-   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc  # oder ~/.zshrc
-   source ~/.bashrc
-   ```
+# PATH anpassen (zsh)
+echo 'export PATH="$HOME/se-tools/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
 
-4. **GitHub‑Token einrichten**  
-   `newproject`/`projectnew` nutzen einen Token‑Speicher unter `~/.config/se-tools/gh_token.txt` mit Drehung nach ~80 Tagen.  
-   ```bash
-   mkdir -p ~/.config/se-tools
-   echo "<DEIN_GITHUB_TOKEN>" > ~/.config/se-tools/gh_token.txt
-   chmod 600 ~/.config/se-tools/gh_token.txt
-   ```
-   **Scopes** (Empfehlung): `repo`, `workflow`, `delete_repo`.
+Danach stehen die Befehle (`newproject`, `pushrepo` usw.) global im Terminal zur Verfügung.
 
 ---
 
-## Schnellstart
+## Entwicklungsumgebung Setup (macOS Beispiel)
 
-### Neues Projekt (nur GitHub)
+### Homebrew (User-spezifisch)
+Wir haben Homebrew im Homeverzeichnis installiert, um Konflikte mit dem Hauptaccount zu vermeiden:
+
 ```bash
-cd ~/code
-newproject
-# Interaktive Abfragen: Projektname, Template, ggf. Tokenprüfung
+which brew
+/Users/tester/.homebrew/bin/brew
+
+brew --version
+Homebrew 4.6.4
 ```
 
-### Neues Projekt (GitHub + Supabase)
+### Git
 ```bash
-export SUPABASE_URL="https://<dein-projekt>.supabase.co"
-export SUPABASE_SERVICE_ROLE="<service_role_jwt>"
-projectnew
+git --version
+git version 2.51.0
 ```
 
-### Sicher pushen
+### GitHub CLI (gh)
+```bash
+gh --version
+gh version 2.76.2 (2025-07-30)
+```
+
+### Visual Studio Code
+VS Code wurde installiert und der CLI-Pfad (`code`) gesetzt:
+
+```bash
+code .   # öffnet VS Code im aktuellen Verzeichnis
+```
+
+### Git-Konfiguration
+```bash
+git config --global user.name "Rusmir Omerovic"
+git config --global user.email "DEINE-GITHUB-EMAIL@beispiel.tld"
+git config --global init.defaultBranch main
+git config --global pull.rebase false
+git config --global credential.helper osxkeychain
+```
+
+---
+
+## Authentifizierung
+
+### Option A – GitHub Login über gh (empfohlen)
+
+```bash
+gh auth login
+gh auth status
+```
+
+Beispielausgabe:
+```
+github.com
+  ✓ Logged in to github.com account RusmirOmerovic (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
+```
+
+Token-Export (nur falls Skripte es explizit benötigen):
+```bash
+export GH_TOKEN="$(gh auth token)"
+export GITHUB_TOKEN="$GH_TOKEN"
+```
+
+### Option B – Personal Access Token (PAT) als Fallback/CI
+
+1. PAT unter `https://github.com/settings/tokens` erstellen.  
+   Scopes minimal halten: `repo`, optional `workflow`, nur bei Bedarf `delete_repo`.
+
+2. Token exportieren oder in `.env.local` speichern:
+```bash
+export GH_TOKEN="ghp_xxx"
+export GITHUB_TOKEN="$GH_TOKEN"
+
+# optional in .env.local (immer in .gitignore!)
+umask 177
+cat > .env.local <<'EOF'
+GH_TOKEN=ghp_xxx
+GITHUB_TOKEN=ghp_xxx
+EOF
+```
+
+---
+
+## Sicherheitshinweise
+
+- Keine Tokens oder Secrets ins Repo committen.  
+- `.env*`, `*.pem`, `*.key`, `secrets/` immer in `.gitignore`.  
+- `gh auth token` bevorzugen statt PAT-Dateien.  
+- Least Privilege: nur die Scopes freigeben, die gebraucht werden.  
+
+---
+
+## Verwendung der Skripte
+
+### newproject
+Legt ein neues GitHub-Repository an und initialisiert es lokal.
+
+```bash
+newproject --name my-app --private --description "Demo Repo"
+```
+
+### pushrepo
+Fügt Remote hinzu und pusht lokalen Code nach GitHub.
+
 ```bash
 pushrepo
-# Führt Sicherheits‑Checks aus, commitet und pusht mit rebase‑Pull
 ```
 
-### Repo aufräumen/löschen
+### deleterepo
+Löscht ein GitHub-Repository (benötigt Scope `delete_repo`).
+
 ```bash
-deleterepo <repoName>
-# Fragt nach lokalem Löschen und Remote‑Löschen (gh repo delete RusmirOmerovic/<repoName>)
+deleterepo --name my-app
 ```
 
-### Merges
+### Weitere Skripte
+- `mergerepo` – PRs zusammenführen  
+- `supabase-*` – Helper für Supabase-Integration (Tokens per ENV)  
+
+---
+
+## Beispiel: newproject Workflow
+
 ```bash
-# testing -> main (Release)
-merge-main
+# Auth sicherstellen
+gh auth status || gh auth login
+export GH_TOKEN="$(gh auth token)"
+export GITHUB_TOKEN="$GH_TOKEN"
 
-# develop -> testing (Staging aktualisieren)
-merge-test
+# Neues Repo anlegen
+newproject --name playground-demo --private
+
+# Lokalen Commit erzeugen und pushen
+git init -b main
+echo "# playground-demo" > README.md
+git add README.md && git commit -m "init"
+git remote add origin https://github.com/<USER>/playground-demo.git
+git push -u origin main
 ```
 
 ---
 
-## Sicherheits‑Checks (pushrepo)
+## Troubleshooting
 
-`pushrepo` prüft bekannte sensible Muster (z. B. `.env`, `.env.local`, `.DS_Store`, `*.key`, `secrets/`, `*.pem`, evtl. `.supabase/`). Wird etwas gefunden, bricht das Skript mit Hinweis ab, bevor versehentlich Geheimnisse committed werden.
-
----
-
-## Supabase‑Integration (projectnew)
-
-- Legt einen **Project‑Eintrag** und **Milestones** per `curl` am REST‑Endpoint an:
-  - Tabellen: `projects`, `milestones` (erwartete Felder siehe Wiki)
-  - Auth: `apikey` + `Authorization: Bearer <SERVICE_ROLE>` Header
-- Gibt nach Erfolg direkte Links aus (GitHub‑Repo, Dashboard).
-
-> Stelle sicher, dass die RLS‑Regeln und Tabellenstruktur in Supabase zu deinen Anforderungen passen. Details im Wiki.
-
----
-
-## Best Practices
-
-- Vor `merge-*`: Arbeitsbaum sauber halten (`git status`), lokal rebasen.
-- Branch‑Strategie: `develop` → `testing` → `main` (Production).
-- **Secrets niemals commiten** – nutze `.env` lokal und Actions‑Secrets in GitHub.
-- Token im Ordner `~/.config/se-tools` mit `600`‑Rechten speichern.
-- Optional: GitHub Actions für Lint/Build/Test/Deploy (siehe Wiki).
+- **`gh auth token` leer** → `gh auth login` ausführen.  
+- **`git push` fragt nach Passwort** → `git config --global credential.helper osxkeychain`.  
+- **SSH statt HTTPS nutzen** (optional):  
+```bash
+ssh-keygen -t ed25519 -C "deine-github-mail@example.com" -f ~/.ssh/id_ed25519 -N ""
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+gh ssh-key add ~/.ssh/id_ed25519.pub -t "MacBook Air"
+ssh -T git@github.com
+```
+- **CI ohne gh** → PAT als Secret `GH_TOKEN`/`GITHUB_TOKEN` setzen.
 
 ---
 
-## Mitwirken
+## TL;DR
 
-PRs und Issues sind willkommen. Bitte halte dich an die Sicherheitsleitlinien (keine Secrets in Beispielen) und bevorzuge kleine, nachvollziehbare Commits.
+- Lokales Setup: ✔️ Homebrew, Git, gh, VS Code  
+- Auth: ✔️ via `gh auth login` (empfohlen)  
+- Token: ✔️ `export GH_TOKEN="$(gh auth token)"`  
+- Skripte: ✔️ `newproject`, `pushrepo`, `deleterepo` usw.  
+- Sicherheit: ✔️ keine Tokens im Repo
 
 ---
-
-## Lizenz
-
-**MIT-Lizenz**
