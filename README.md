@@ -3,7 +3,7 @@
 **se-tools** ist ein leichtgewichtiges Tool-Set aus Bash-Skripten, um neue Projekte in Sekunden anzulegen, sicher zu pushen, Repos zu löschen und standardisierte Merges/Deploys durchzuführen.  
 Es richtet sich an DevOps-/DevSecOps-Workflows mit GitHub.
 
-## Tip:
+## Tipp:
 öffne deine Konfigurationsdatei .zshrc/.bashrc im Terminal mit nano .zshrc/.bashrc, danach füge die Pfade für die Bash-Befehle sowie die 
 GitHub-Token ein. 
 Das sollte dann ungefähr so aussehen: 
@@ -25,7 +25,7 @@ export GITHUB_TOKEN="$GH_TOKEN"
 
 
 
-> **Kurzfassung:**  
+> ## Kurzfassung der Befehle:  
 > - `newproject` erzeugt ein neues Repo aus einer Template-Vorlage  
 > - `pushrepo` pusht sicher mit Checks  
 > - `deleterepo` räumt lokal/remote auf  
