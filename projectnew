@@ -38,14 +38,17 @@ PROJECT_NAME=$1
 ZIELORDNER="$PWD/$PROJECT_NAME"
 [ -d "$ZIELORDNER" ] && { echo -e "${RED}❌ Ordner existiert.${NC}"; exit 1; }
 
-# === Supabase Variablen aus .env einlesen ===
-if [ ! -f ".env" ]; then
-    echo -e "${RED}❌ .env-Datei fehlt.${NC}"
+# === Supabase Variablen aus Schlüsselbundverwaltung einlesen ===
+SUPABASE_URL=$(security find-generic-password -a "$USER" -s "SUPABASE_URL" -w 2>/dev/null || true)
+SUPABASE_SERVICE_ROLE=$(security find-generic-password -a "$USER" -s "SUPABASE_SERVICE_ROLE" -w 2>/dev/null || true)
+
+if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE" ]; then
+    echo -e "${RED}❌ Supabase Keys nicht im Keychain gefunden. Bitte Admin kontaktieren.${NC}"
     exit 1
 fi
-SUPABASE_URL=$(grep SUPABASE_URL .env | cut -d '=' -f2-)
-SUPABASE_SERVICE_ROLE=$(grep SUPABASE_SERVICE_ROLE .env | cut -d '=' -f2-)
-SUPABASE_USER_MAIL=$(grep SUPABASE_USER_MAIL .env | cut -d '=' -f2-)
+
+read -p "📧 Deine E-Mail-Adresse: " SUPABASE_USER_MAIL
+
 
 # === Zusätzliche Eingaben ===
 read -p "👥 Teammitglieder: " TEAM_NAMES
