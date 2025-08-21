@@ -1,50 +1,44 @@
 #!/bin/bash
-# projectnew.sh – Neues Projekt + Supabase-Eintrag
+# projectnew.sh – Neues Projekt + GitHub Repo + Supabase-Eintrag
+# Sicherheit: GitHub-Token wird im macOS Keychain gespeichert
 
 set -e
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# === Basis-Variablen ===
 TEMPLATE_REPO="https://github.com/RusmirOmerovic/html-template-se.git"
 USERNAME="RusmirOmerovic"
 GITHUB_API="https://api.github.com"
-CONFIG_DIR="$HOME/.config/se-tools"
-TOKEN_FILE="$CONFIG_DIR/gh_token.txt"
-MAX_AGE=80
+SERVICE_NAME="se-tools"   # Name für Keychain-Eintrag
 
-mkdir -p "$CONFIG_DIR" && chmod 700 "$CONFIG_DIR"
-
-check_token() {
-    if [[ -f "$TOKEN_FILE" ]]; then
-        created=$(head -n1 "$TOKEN_FILE")
-        token=$(tail -n1 "$TOKEN_FILE")
-        age=$(( ( $(date +%s) - created ) / 86400 ))
-        if (( age < MAX_AGE )); then
-            GITHUB_TOKEN="$token"
-            return 0
-        fi
+# === Token aus Keychain abrufen oder neu speichern ===
+get_token() {
+    # Versuchen, Token aus Keychain zu lesen
+    if GITHUB_TOKEN=$(security find-generic-password -s "$SERVICE_NAME" -a "$USER" -w 2>/dev/null); then
+        echo "🔐 Token aus macOS Keychain geladen."
+    else
+        # Wenn kein Token vorhanden → nach Token fragen
+        read -s -p "🔑 Neues GitHub-Token: " GITHUB_TOKEN
+        echo
+        # Token sicher im Keychain speichern
+        security add-generic-password -s "$SERVICE_NAME" -a "$USER" -w "$GITHUB_TOKEN" -U
+        echo "💾 Token wurde sicher im macOS Keychain gespeichert."
     fi
-    return 1
 }
-refresh_token() {
-    read -s -p "🔑 Neues GitHub-Token: " GITHUB_TOKEN
-    echo
-    echo -e "$(date +%s)\n$GITHUB_TOKEN" > "$TOKEN_FILE"
-    chmod 600 "$TOKEN_FILE"
-}
-check_token || refresh_token
+get_token
 
+# === Projektnamen prüfen ===
 if [ -z "$1" ]; then
     echo -e "${RED}❌ Projektnamen angeben!${NC}"
     exit 1
 fi
-
 PROJECT_NAME=$1
 ZIELORDNER="$PWD/$PROJECT_NAME"
 [ -d "$ZIELORDNER" ] && { echo -e "${RED}❌ Ordner existiert.${NC}"; exit 1; }
 
-# === SUPABASE Variablen ===
+# === Supabase Variablen aus .env einlesen ===
 if [ ! -f ".env" ]; then
     echo -e "${RED}❌ .env-Datei fehlt.${NC}"
     exit 1
@@ -53,34 +47,69 @@ SUPABASE_URL=$(grep SUPABASE_URL .env | cut -d '=' -f2-)
 SUPABASE_SERVICE_ROLE=$(grep SUPABASE_SERVICE_ROLE .env | cut -d '=' -f2-)
 SUPABASE_USER_MAIL=$(grep SUPABASE_USER_MAIL .env | cut -d '=' -f2-)
 
-# Eingaben
+# === Zusätzliche Eingaben ===
 read -p "👥 Teammitglieder: " TEAM_NAMES
 read -p "📅 Fälligkeitsdatum (YYYY-MM-DD): " DUE_DATE
 read -p "📌 Status: " MILESTONE_STATUS
 [[ -z "$TEAM_NAMES" || -z "$DUE_DATE" || -z "$MILESTONE_STATUS" ]] && { echo -e "${RED}❌ Alle Felder ausfüllen!${NC}"; exit 1; }
 
-# Projekt erstellen (lokal + GitHub)
+# === Lokales Projekt erstellen ===
 git clone "$TEMPLATE_REPO" "$ZIELORDNER"
 cd "$ZIELORDNER"
 rm -rf .git && git init
-touch .gitignore && echo -e ".env\n.DS_Store\nnode_modules" > .gitignore
+echo -e ".env\n.DS_Store\nnode_modules" > .gitignore
 git add . && git commit -m "🆕 Neues Projekt: $PROJECT_NAME"
-curl -s -o /dev/null -w "%{http_code}" \
+
+# === GitHub Repo erstellen ===
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
     -H "Authorization: token $GITHUB_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"name\":\"$PROJECT_NAME\", \"private\":false}" \
-    "$GITHUB_API/user/repos"
+    "$GITHUB_API/user/repos")
+
+if [ "$RESPONSE" != "201" ]; then
+    echo -e "${RED}❌ Fehler bei GitHub Repo-Erstellung.${NC}"
+    exit 1
+fi
+
 git remote add origin "https://github.com/$USERNAME/$PROJECT_NAME.git"
 git branch -M main
 git push -u origin main
 
-# Supabase-Eintrag
-USER_ID=$(curl -s -H "apikey: $SUPABASE_SERVICE_ROLE" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" "$SUPABASE_URL/rest/v1/user_profiles?email=eq.$SUPABASE_USER_MAIL" | jq -r '.[0].id')
-PROJECT_JSON=$(jq -n --arg name "$PROJECT_NAME" --arg startdatum "$(date +%F)" --arg user_id "$USER_ID" --arg status "angemeldet" '{name: $name, status: $status, startdatum: $startdatum, owner_id: $user_id}')
-PROJECT_RESPONSE=$(curl -s -H "apikey: $SUPABASE_SERVICE_ROLE" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" -H "Content-Type: application/json" -H "Prefer: return=representation" -d "$PROJECT_JSON" "$SUPABASE_URL/rest/v1/projects")
+# === Supabase-Eintrag (Projekt + Meilenstein) ===
+USER_ID=$(curl -s -H "apikey: $SUPABASE_SERVICE_ROLE" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
+    "$SUPABASE_URL/rest/v1/user_profiles?email=eq.$SUPABASE_USER_MAIL" | jq -r '.[0].id')
+
+PROJECT_JSON=$(jq -n \
+    --arg name "$PROJECT_NAME" \
+    --arg startdatum "$(date +%F)" \
+    --arg user_id "$USER_ID" \
+    --arg status "angemeldet" \
+    '{name: $name, status: $status, startdatum: $startdatum, owner_id: $user_id}')
+
+PROJECT_RESPONSE=$(curl -s \
+    -H "apikey: $SUPABASE_SERVICE_ROLE" \
+    -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
+    -H "Content-Type: application/json" \
+    -H "Prefer: return=representation" \
+    -d "$PROJECT_JSON" \
+    "$SUPABASE_URL/rest/v1/projects")
+
 PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r '.[0].id')
 
-MILESTONE_JSON=$(jq -n --arg project_id "$PROJECT_ID" --arg title "Team: $TEAM_NAMES" --arg description "https://github.com/$USERNAME/$PROJECT_NAME" --arg due_date "$DUE_DATE" --arg status "$MILESTONE_STATUS" '{project_id: $project_id, title: $title, description: $description, due_date: $due_date, status: $status}')
-curl -s -H "apikey: $SUPABASE_SERVICE_ROLE" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" -H "Content-Type: application/json" -d "$MILESTONE_JSON" "$SUPABASE_URL/rest/v1/milestones"
+MILESTONE_JSON=$(jq -n \
+    --arg project_id "$PROJECT_ID" \
+    --arg title "Team: $TEAM_NAMES" \
+    --arg description "https://github.com/$USERNAME/$PROJECT_NAME" \
+    --arg due_date "$DUE_DATE" \
+    --arg status "$MILESTONE_STATUS" \
+    '{project_id: $project_id, title: $title, description: $description, due_date: $due_date, status: $status}')
+
+curl -s \
+    -H "apikey: $SUPABASE_SERVICE_ROLE" \
+    -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
+    -H "Content-Type: application/json" \
+    -d "$MILESTONE_JSON" \
+    "$SUPABASE_URL/rest/v1/milestones"
 
 echo -e "${GREEN}✅ Projekt '$PROJECT_NAME' inkl. Supabase-Integration erstellt.${NC}"
