@@ -29,6 +29,9 @@ Falls nicht, trage das genau so ein!
                security find-generic-password -s se-tools-gh-token -w
                ```
 
+(ODER: einfach im "Schlüsselbund" mit se-tools suchen)
+
+
 
    ⏳ die Gültigkeitsdauer wird ständig überprüft und vor dem Ablauf von 90 Tagen, wirst du erneut aufgefordert 
       das Token zu erneuern. Dann wiederholst du den Prozess und kopierst wieder das Token in die Abfrage! 
