@@ -1,249 +1,168 @@
 #!/usr/bin/env bash
-# projectnew – Create a project from template, create GitHub repo, add Supabase entry
-# Cross-platform secret storage:
-#   macOS  -> Keychain (security)
-#   Linux  -> Secret Service (secret-tool) or pass; fallback to 600-file
-#   Windows-> DPAPI-encrypted file via PowerShell in %APPDATA%\se-tools
-# Admin seeds SUPABASE_URL and SUPABASE_SERVICE_ROLE once; user enters only email.
+# projectnew – Neues Projekt + GitHub Repo + Supabase-Eintrag
+# Plattform: macOS (Keychain) – liest SUPABASE_URL & SUPABASE_SERVICE_ROLE aus dem Schlüsselbund
+# GitHub-Token: aus Keychain (se-tools-gh-token) ODER gh auth ODER Fallback Prompt
 
-set -Eeuo pipefail
-IFS=$'\n\t'
+set -euo pipefail
 
-# ---------- Colors ----------
-GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+# ===== Farben =====
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-# ---------- Config ----------
+# ===== Konfig =====
 TEMPLATE_REPO="https://github.com/RusmirOmerovic/html-template-se.git"
 USERNAME="RusmirOmerovic"
 GITHUB_API="https://api.github.com"
 
-# Service names / file fallbacks
-SVC_GH="se-tools-gh-token"
-SVC_SB_URL="SUPABASE_URL"
-SVC_SB_SR="SUPABASE_SERVICE_ROLE"
-CFG_DIR="$HOME/.config/se-tools"    # Linux plaintext fallback
-mkdir -p "$CFG_DIR"; chmod 700 "$CFG_DIR" 2>/dev/null || true
+# ===== Helfer =====
+die() { echo -e "${RED}❌ $*${NC}" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "Benötigtes Tool fehlt: $1"; }
 
-# ---------- OS detection ----------
-detect_os() {
-  case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
-    darwin*)   echo "macos" ;;
-    linux*)    echo "linux" ;;
-    msys*|mingw*|cygwin*) echo "windows" ;; # Git Bash / MSYS / Cygwin
-    *)         echo "unknown" ;;
-  esac
-}
-OS="$(detect_os)"
+need git
+need curl
+need jq
 
-# ---------- Secret: get ----------
-# get_secret <service>
-get_secret() {
-  local service="$1" val=""
-  # 1) ENV override (allows CI or manual override)
-  case "$service" in
-    "$SVC_GH")      val="${GITHUB_TOKEN:-${GH_TOKEN:-}}" ;;
-    "$SVC_SB_URL")  val="${SUPABASE_URL:-}" ;;
-    "$SVC_SB_SR")   val="${SUPABASE_SERVICE_ROLE:-}" ;;
-  esac
-  if [[ -n "$val" ]]; then echo -n "$val"; return 0; fi
-
-  # 2) OS-specific stores
-  if [[ "$OS" == "macos" ]]; then
-    # macOS Keychain
-    if command -v security >/dev/null 2>&1; then
-      val="$(security find-generic-password -a "$USER" -s "$service" -w 2>/dev/null || true)"
-      if [[ -n "$val" ]]; then echo -n "$val"; return 0; fi
+# --- GitHub Token besorgen (Keychain -> gh auth -> Prompt) ---
+get_github_token() {
+  local t
+  t="$(security find-generic-password -a "$USER" -s "se-tools-gh-token" -w 2>/dev/null || true)"
+  if [[ -z "${t}" ]]; then
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+      t="$(gh auth token 2>/dev/null || true)"
     fi
-  elif [[ "$OS" == "linux" ]]; then
-    # GNOME/KDE Secret Service
-    if command -v secret-tool >/dev/null 2>&1; then
-      val="$(secret-tool lookup service "$service" account "$USER" 2>/dev/null || true)"
-      if [[ -n "$val" ]]; then echo -n "$val"; return 0; fi
-    fi
-    # pass password store
-    if command -v pass >/dev/null 2>&1; then
-      if pass show "se-tools/$service/$USER" >/dev/null 2>&1; then
-        val="$(pass show "se-tools/$service/$USER" 2>/dev/null || true)"
-        if [[ -n "$val" ]]; then echo -n "$val"; return 0; fi
-      fi
-    fi
-    # plaintext fallback (chmod 600) – last resort
-    if [[ -r "$CFG_DIR/$service.txt" ]]; then
-      val="$(cat "$CFG_DIR/$service.txt" 2>/dev/null || true)"
-      if [[ -n "$val" ]]; then echo -n "$val"; return 0; fi
-    fi
-  elif [[ "$OS" == "windows" ]]; then
-    # DPAPI-encrypted file in %APPDATA%\se-tools\<service>.txt
-    local ps='
-      param([string]$Service)
-      $p = "$env:APPDATA\se-tools\$Service.txt"
-      if (Test-Path $p) {
-        $enc = Get-Content -Raw -Path $p
-        $sec = ConvertTo-SecureString $enc
-        $plain = [System.Net.NetworkCredential]::new("", $sec).Password
-        Write-Output $plain
-      }
-    '
-    val="$(powershell.exe -NoProfile -Command "$ps" -Service "$service" 2>/dev/null | tr -d '\r' || true)"
-    if [[ -n "$val" ]]; then echo -n "$val"; return 0; fi
   fi
-
-  # 3) none found
-  return 1
+  if [[ -z "${t}" ]]; then
+    read -s -p "🔑 GitHub Token (repo+workflow): " t; echo
+    # Optional: gleich sicher ablegen
+    security add-generic-password -a "$USER" -s "se-tools-gh-token" -w "$t" -U >/dev/null 2>&1 || true
+  fi
+  [[ -n "${t}" ]] || die "Kein GitHub-Token verfügbar."
+  echo -n "${t}"
 }
 
-# ---------- Secret: set ----------
-# set_secret <service> <value>
-set_secret() {
-  local service="$1" value="$2"
-
-  if [[ "$OS" == "macos" && -n "$(command -v security)" ]]; then
-    security add-generic-password -a "$USER" -s "$service" -w "$value" -U >/dev/null 2>&1 || true
-    return 0
-  elif [[ "$OS" == "linux" ]]; then
-    if command -v secret-tool >/dev/null 2>&1; then
-      printf %s "$value" | secret-tool store --label='se-tools' service "$service" account "$USER" >/dev/null 2>&1 || true
-      return 0
-    fi
-    if command -v pass >/dev/null 2>&1; then
-      printf %s "$value" | pass insert -m "se-tools/$service/$USER" >/dev/null 2>&1 || true
-      return 0
-    fi
-    umask 177; printf %s "$value" > "$CFG_DIR/$service.txt"; chmod 600 "$CFG_DIR/$service.txt"
-    return 0
-  elif [[ "$OS" == "windows" ]]; then
-    local ps='
-      param([string]$Service,[string]$Value)
-      New-Item -ItemType Directory -Force $env:APPDATA\se-tools | Out-Null
-      $sec = ConvertTo-SecureString $Value -AsPlainText -Force
-      $enc = $sec | ConvertFrom-SecureString
-      Set-Content -Path "$env:APPDATA\se-tools\$Service.txt" -Value $enc
-    '
-    powershell.exe -NoProfile -Command "$ps" -Service "$service" -Value "$value" >/dev/null 2>&1 || true
-    return 0
-  fi
-
-  return 1
+# --- Supabase Secrets aus Keychain laden (macOS) ---
+get_supabase_secret() {
+  local name="$1"
+  security find-generic-password -a "$USER" -s "$name" -w 2>/dev/null | tr -d '\r\n' || true
 }
 
-# ---------- Ensure GitHub token ----------
-ensure_github_token() {
-  local tok=""
-  tok="$(get_secret "$SVC_GH" || true)"
-  if [[ -z "$tok" ]]; then
-    # try gh (mac/linux) for convenience
-    if command -v gh >/dev/null 2>&1; then
-      tok="$(gh auth token 2>/dev/null || true)"
-      if [[ -n "$tok" ]]; then set_secret "$SVC_GH" "$tok"; echo -e "${CYAN}🔐 GitHub-Token aus gh im Secure Store gespeichert.${NC}"; fi
-    fi
-  fi
-  if [[ -z "$tok" ]]; then
-    # final prompt (masked)
-    read -s -p "🔑 GitHub-Token: " tok; echo
-    if [[ -z "$tok" ]]; then echo -e "${RED}❌ Kein Token eingegeben.${NC}"; exit 1; fi
-    set_secret "$SVC_GH" "$tok"
-    echo -e "${CYAN}💾 Token sicher gespeichert.${NC}"
-  fi
-  GITHUB_TOKEN="$tok"; export GITHUB_TOKEN
-  # simple validation
-  if ! curl -fsS -H "Authorization: token $GITHUB_TOKEN" "$GITHUB_API/user" >/dev/null; then
-    echo -e "${RED}❌ Ungültiges GitHub-Token (API /user).${NC}"; exit 1
-  fi
-}
+SUPABASE_URL="$(get_supabase_secret "SUPABASE_URL")"
+SUPABASE_SERVICE_ROLE="$(get_supabase_secret "SUPABASE_SERVICE_ROLE")"
+[[ -n "${SUPABASE_URL}" && -n "${SUPABASE_SERVICE_ROLE}" ]] \
+  || die "Supabase Keys nicht im Keychain gefunden. Bitte zuerst 'setup-supabase-secrets' ausführen."
 
-# ---------- Ensure Supabase secrets ----------
-ensure_supabase_secrets() {
-  local url="" role=""
-  url="$(get_secret "$SVC_SB_URL" || true)"
-  role="$(get_secret "$SVC_SB_SR"  || true)"
-  if [[ -z "$url" || -z "$role" ]]; then
-    echo -e "${RED}❌ Supabase Keys nicht im Secure Store gefunden.${NC}"
-    echo "   Bitte Admin setzt sie einmalig (siehe README/Wiki)."
-    exit 1
-  fi
-  SUPABASE_URL="$url"; SUPABASE_SERVICE_ROLE="$role"
-}
+# ===== DEBUG (keine Geheimnisse ausgeben) =====
+echo -e "${CYAN}DEBUG${NC} Supabase URL: ${SUPABASE_URL}"
+echo -e "${CYAN}DEBUG${NC} Service-Role Länge: ${#SUPABASE_SERVICE_ROLE}"
 
-# ---------- Input: project name ----------
-if [[ $# -lt 1 ]]; then
-  echo -e "${RED}❌ Projektnamen angeben!${NC}"; exit 1
+# ===== Projektnamen =====
+PROJECT_NAME="${1:-}"
+if [[ -z "${PROJECT_NAME}" ]]; then
+  read -r -p "📦 Projektname: " PROJECT_NAME
 fi
-PROJECT_NAME="$1"
-TARGET="$PWD/$PROJECT_NAME"
-[[ -d "$TARGET" ]] && { echo -e "${RED}❌ Ordner existiert bereits: $TARGET${NC}"; exit 1; }
+[[ -n "${PROJECT_NAME}" ]] || die "Projektnamen angeben!"
 
-# ---------- Gather email from user ----------
+ZIELORDNER="${PWD}/${PROJECT_NAME}"
+[[ -d "${ZIELORDNER}" ]] && die "Ordner '${ZIELORDNER}' existiert bereits."
+
+# ===== Nutzer-E-Mail (Supabase Zuordnung) =====
 read -r -p "📧 Deine E-Mail-Adresse: " SUPABASE_USER_MAIL
-[[ -z "$SUPABASE_USER_MAIL" ]] && { echo -e "${RED}❌ E-Mail erforderlich.${NC}"; exit 1; }
+[[ -n "${SUPABASE_USER_MAIL}" ]] || die "E-Mail darf nicht leer sein."
 
-# ---------- Ensure secrets ----------
-ensure_github_token
-ensure_supabase_secrets
+# ===== Team / Fällig / Status =====
+read -r -p "👥 Teammitglieder (frei text): " TEAM_NAMES
 
-# ---------- Create local project ----------
-git clone "$TEMPLATE_REPO" "$TARGET"
-cd "$TARGET"
-rm -rf .git && git init
-echo -e ".env\n.DS_Store\nnode_modules" > .gitignore
-git add . && git commit -m "🆕 Neues Projekt: $PROJECT_NAME"
+# Default: in 14 Tagen
+DEFAULT_DUE="$(date -v+14d +%F 2>/dev/null || date -d '+14 days' +%F)"
+read -r -p "📅 Fälligkeitsdatum [YYYY-MM-DD] (Default ${DEFAULT_DUE}): " DUE_DATE
+DUE_DATE="${DUE_DATE:-$DEFAULT_DUE}"
 
-# ---------- Create GitHub repo ----------
-RESP=$(curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: token $GITHUB_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "{\"name\":\"$PROJECT_NAME\",\"private\":false}" \
-  "$GITHUB_API/user/repos")
-
-if [[ "$RESP" != "201" ]]; then
-  echo -e "${RED}❌ Fehler bei GitHub Repo-Erstellung (HTTP $RESP).${NC}"
-  exit 1
+# simple ISO-Check
+if ! [[ "${DUE_DATE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+  die "Fälligkeitsdatum muss im Format YYYY-MM-DD sein."
 fi
 
-git remote add origin "https://github.com/$USERNAME/$PROJECT_NAME.git"
+echo -e "📌 Status wählen: [angemeldet|geplant|laufend|abgeschlossen]"
+read -r -p "Status (Default: geplant): " MILESTONE_STATUS
+MILESTONE_STATUS="${MILESTONE_STATUS:-geplant}"
+
+# ===== GitHub Repo anlegen + lokalen Template-Clone vorbereiten =====
+echo -e "${CYAN}→ GitHub Repo & lokales Projekt anlegen …${NC}"
+GITHUB_TOKEN="$(get_github_token)"
+
+git clone "${TEMPLATE_REPO}" "${ZIELORDNER}"
+cd "${ZIELORDNER}"
+rm -rf .git && git init
+
+# .gitignore sicherstellen
+printf ".env\n.DS_Store\nnode_modules\n" > .gitignore
+
+git add . && git commit -m "🆕 Neues Projekt: ${PROJECT_NAME}"
+
+# Remote Repo via API
+RESP_CODE="$(curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: token ${GITHUB_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"${PROJECT_NAME}\", \"private\":false}" \
+  "${GITHUB_API}/user/repos")"
+
+if [[ "${RESP_CODE}" != "201" ]]; then
+  die "Fehler bei GitHub Repo-Erstellung (HTTP ${RESP_CODE})."
+fi
+
+git remote add origin "https://github.com/${USERNAME}/${PROJECT_NAME}.git"
 git branch -M main
 git push -u origin main
 
-# ---------- Supabase calls ----------
-USER_ID=$(curl -fsS \
-  -H "apikey: $SUPABASE_SERVICE_ROLE" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
-  "$SUPABASE_URL/rest/v1/user_profiles?email=eq.$SUPABASE_USER_MAIL" | jq -r '.[0].id')
+REPO_URL="https://github.com/${USERNAME}/${PROJECT_NAME}"
 
-if [[ "$USER_ID" == "null" || -z "$USER_ID" ]]; then
-  echo -e "${RED}❌ Supabase: User nicht gefunden. Ist die E-Mail registriert?${NC}"
-  exit 1
-fi
+# ===== Supabase: UserID holen, Projekt + Milestone anlegen =====
+echo -e "${CYAN}→ Supabase Einträge erstellen …${NC}"
 
-PROJECT_JSON=$(jq -n \
-  --arg name "$PROJECT_NAME" \
-  --arg startdatum "$(date +%F)" \
-  --arg user_id "$USER_ID" \
-  --arg status "angemeldet" \
-  '{name:$name,status:$status,startdatum:$startdatum,owner_id:$user_id}')
+USER_ID="$(curl -s \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE}" \
+  "${SUPABASE_URL}/rest/v1/user_profiles?email=eq.${SUPABASE_USER_MAIL}&select=id&limit=1" \
+  | jq -r '.[0].id')"
 
-PROJECT_RESPONSE=$(curl -fsS \
-  -H "apikey: $SUPABASE_SERVICE_ROLE" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
+[[ "${USER_ID}" != "null" && -n "${USER_ID}" ]] || die "Kein user_profiles-Eintrag für ${SUPABASE_USER_MAIL} gefunden. Bitte zuerst im Frontend registrieren."
+
+STARTDATUM="$(date +%F)"
+PROJECT_JSON="$(jq -n --arg name "${PROJECT_NAME}" --arg startdatum "${STARTDATUM}" --arg user_id "${USER_ID}" --arg status "angemeldet" \
+  '{name:$name,status:$status,startdatum:$startdatum,owner_id:$user_id}')"
+
+PROJECT_RESPONSE="$(curl -s \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE}" \
+  -H "Content-Type: application/json" -H "Prefer: return=representation" \
+  -d "${PROJECT_JSON}" \
+  "${SUPABASE_URL}/rest/v1/projects")"
+
+PROJECT_ID="$(echo "${PROJECT_RESPONSE}" | jq -r '.[0].id')"
+[[ "${PROJECT_ID}" != "null" && -n "${PROJECT_ID}" ]] || die "Projekt konnte in Supabase nicht angelegt werden: ${PROJECT_RESPONSE}"
+
+MILESTONE_JSON="$(jq -n \
+  --arg project_id "${PROJECT_ID}" \
+  --arg title "Team: ${TEAM_NAMES}" \
+  --arg description "${REPO_URL}" \
+  --arg due_date "${DUE_DATE}" \
+  --arg status "${MILESTONE_STATUS}" \
+  '{project_id:$project_id,title:$title,description:$description,due_date:$due_date,status:$status}')"
+
+MS_RESP="$(curl -s \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE}" \
   -H "Content-Type: application/json" \
-  -H "Prefer: return=representation" \
-  -d "$PROJECT_JSON" \
-  "$SUPABASE_URL/rest/v1/projects")
+  -d "${MILESTONE_JSON}" \
+  "${SUPABASE_URL}/rest/v1/milestones")"
 
-PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r '.[0].id')
+# Optional: minimaler Check
+MS_ERR="$(echo "${MS_RESP}" | jq -r 'if type=="object" and has("message") then .message else empty end' 2>/dev/null || true)"
+[[ -z "${MS_ERR}" ]] || die "Milestone-Insert fehlgeschlagen: ${MS_ERR}"
 
-MILESTONE_JSON=$(jq -n \
-  --arg project_id "$PROJECT_ID" \
-  --arg title "Team: $SUPABASE_USER_MAIL" \
-  --arg description "https://github.com/$USERNAME/$PROJECT_NAME" \
-  --arg due_date "$(date -d '+14 days' +%F 2>/dev/null || date -v+14d +%F)" \
-  --arg status "geplant" \
-  '{project_id:$project_id,title:$title,description:$description,due_date:$due_date,status:$status}')
-
-curl -fsS \
-  -H "apikey: $SUPABASE_SERVICE_ROLE" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
-  -H "Content-Type: application/json" \
-  -d "$MILESTONE_JSON" \
-  "$SUPABASE_URL/rest/v1/milestones" >/dev/null
-
-echo -e "${GREEN}✅ Projekt '$PROJECT_NAME' inkl. Supabase-Integration erstellt.${NC}"
+echo -e "${GREEN}✅ Projekt '${PROJECT_NAME}' erstellt & auf GitHub gepusht.${NC}"
+echo -e "${GREEN}✅ Supabase: project=${PROJECT_ID}, milestone OK.${NC}"
+echo -e "🔗 ${REPO_URL}"
