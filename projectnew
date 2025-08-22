@@ -10,7 +10,7 @@ GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'
 TEMPLATE_REPO="https://github.com/RusmirOmerovic/html-template-se.git"
 USERNAME="RusmirOmerovic"
 GITHUB_API="https://api.github.com"
-KEYCHAIN_GH="se-tools-gh-token"         # wie in newproject.sh
+KEYCHAIN_GH="se-tools-gh-token"
 SVC_URL="SUPABASE_URL"
 SVC_ROLE="SUPABASE_SERVICE_ROLE"
 
@@ -20,30 +20,29 @@ need git; need curl; need jq; need security
 
 # ---- GitHub Token laden ----
 get_github_token() {
+  local t=""
   if security find-generic-password -s "$KEYCHAIN_GH" >/dev/null 2>&1; then
-    security find-generic-password -s "$KEYCHAIN_GH" -w
-  else
-    read -s -p "🔑 GitHub-Token (repo+workflow): " t; echo
-    security add-generic-password -a "$USER" -s "$KEYCHAIN_GH" -w "$t" -U
-    echo -e "${CYAN}💾 Token im macOS Keychain gespeichert.${NC}"
-    echo -n "$t"
+    t="$(security find-generic-password -s "$KEYCHAIN_GH" -w | tr -d '\r\n')"
   fi
+  if [[ -z "$t" ]]; then
+    read -s -p "🔑 GitHub-Token (repo+workflow): " t; echo
+    security add-generic-password -a "$USER" -s "$KEYCHAIN_GH" -w "$t" -U >/dev/null 2>&1 || true
+    echo -e "${CYAN}💾 Token im macOS Keychain gespeichert.${NC}"
+  end
+  echo -n "$t"
 }
 
-# ---- Supabase Secrets laden ----
-get_secret() {
-  # liest den Secret-Wert und entfernt CR/LF, damit keine Newlines in Headern landen
-  security find-generic-password -a "$USER" -s "$1" -w 2>/dev/null | tr -d '\r\n' || true
-}
+# ---- Supabase Secrets laden (ohne CR/LF; URL ohne trailing /) ----
+get_secret() { security find-generic-password -a "$USER" -s "$1" -w 2>/dev/null | tr -d '\r\n' || true; }
 
-
-SUPABASE_URL="$(get_secret "$SVC_URL")"
+SUPABASE_URL="$(get_secret "$SVC_URL")"; SUPABASE_URL="${SUPABASE_URL%/}"
 SUPABASE_SERVICE_ROLE="$(get_secret "$SVC_ROLE")"
-[[ -n "$SUPABASE_URL" && -n "$SUPABASE_SERVICE_ROLE" ]] || { echo -e "${RED}❌ Supabase-Keys fehlen. Erst 'setup-supabase-secrets' ausführen.${NC}"; exit 1; }
-SUPABASE_URL="${SUPABASE_URL%/}"  # Slash am Ende entfernen
+
+[[ -n "$SUPABASE_URL" && -n "$SUPABASE_SERVICE_ROLE" ]] \
+  || { echo -e "${RED}❌ Supabase-Keys fehlen. Erst 'setup-supabase-secrets' ausführen.${NC}"; exit 1; }
 
 echo -e "${CYAN}DEBUG${NC} Supabase URL: $SUPABASE_URL"
-echo -e "${CYAN}DEBUG${NC} Service-Role Länge: ${#SUPABASE_SERVICE_ROLE}"
+printf "${CYAN}DEBUG${NC} Service-Role Länge: %s\n" "${#SUPABASE_SERVICE_ROLE}"
 
 # ---- Projektnamen prüfen ----
 if [ $# -lt 1 ]; then echo -e "${RED}❌ Projektnamen angeben!${NC}"; exit 1; fi
@@ -70,8 +69,7 @@ echo -e "${CYAN}→ GitHub Repo anlegen & pushen …${NC}"
 GITHUB_TOKEN="$(get_github_token)"
 
 # Guard: Repo existiert schon?
-EXIST_HTTP="$(curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: Bearer $GITHUB_TOKEN" \
+EXIST_HTTP="$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $GITHUB_TOKEN" \
   "$GITHUB_API/repos/$USERNAME/$PROJECT_NAME")"
 if [ "$EXIST_HTTP" = "200" ]; then
   echo -e "${RED}❌ Repo '$USERNAME/$PROJECT_NAME' existiert bereits.${NC}"
@@ -103,10 +101,19 @@ fi
 git remote add origin "https://github.com/$USERNAME/$PROJECT_NAME.git"
 git branch -M main
 git push -u origin main
-
 REPO_URL="https://github.com/$USERNAME/$PROJECT_NAME"
 
-# ---- Supabase: User-ID über E-Mail holen (E-Mail URL-encodiert) ----
+# ---- Supabase: Früher Auth-Ping (klare Fehlermeldung bei Mismatch) ----
+AUTH_HTTP="$(curl -s -o /dev/null -w "%{http_code}" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
+  "$SUPABASE_URL/rest/v1/user_profiles?select=id&limit=1")"
+if [ "$AUTH_HTTP" != "200" ]; then
+  echo -e "${RED}❌ Supabase Auth-Check fehlgeschlagen (HTTP $AUTH_HTTP). Prüfe URL & Service-Role-Key.${NC}"
+  exit 1
+fi
+
+# ---- Supabase: User-ID (E-Mail URL-encodiert) ----
 echo -e "${CYAN}→ Supabase: User & Projekt anlegen …${NC}"
 EMAIL_ENC="$(printf '%s' "$SUPABASE_USER_MAIL" | jq -sRr @uri)"
 USER_Q="${SUPABASE_URL}/rest/v1/user_profiles?email=eq.${EMAIL_ENC}&select=id&limit=1"
@@ -116,12 +123,10 @@ USER_HTTP="$(curl -s -o "$USER_BODY" -w "%{http_code}" \
   -H "apikey: $SUPABASE_SERVICE_ROLE" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
   "$USER_Q")"
-
 if [ "$USER_HTTP" != "200" ]; then
   echo -e "${RED}❌ user_profiles Query fehlgeschlagen (HTTP $USER_HTTP):${NC} $(cat "$USER_BODY")"
   rm -f "$USER_BODY"; exit 1
 fi
-
 USER_ID="$(jq -r '.[0].id // empty' < "$USER_BODY")"
 rm -f "$USER_BODY"
 [ -n "$USER_ID" ] || { echo -e "${RED}❌ Kein user_profiles Eintrag für '$SUPABASE_USER_MAIL'. Bitte zuerst im Frontend registrieren.${NC}"; exit 1; }
@@ -131,7 +136,6 @@ read -r -p "👤 Rolle für den Projekt-Owner [student|tutor|owner] (Default: st
 OWNER_ROLE="${OWNER_ROLE:-student}"
 
 ROLE_JSON="$(jq -n --arg role "$OWNER_ROLE" --arg user_id "$USER_ID" '{role:$role,user_id:$user_id}')"
-
 ROLE_BODY="$(mktemp)"
 ROLE_HTTP="$(curl -s -o "$ROLE_BODY" -w "%{http_code}" \
   -H "apikey: $SUPABASE_SERVICE_ROLE" \
@@ -140,17 +144,14 @@ ROLE_HTTP="$(curl -s -o "$ROLE_BODY" -w "%{http_code}" \
   -H "Prefer: resolution=merge-duplicates,return=representation" \
   -d "$ROLE_JSON" \
   "${SUPABASE_URL}/rest/v1/user_roles?on_conflict=user_id")"
-
 if [[ ! "$ROLE_HTTP" =~ ^20[01]$ ]]; then
   echo -e "${RED}❌ Upsert user_roles fehlgeschlagen (HTTP $ROLE_HTTP):${NC} $(cat "$ROLE_BODY")"
   rm -f "$ROLE_BODY"; exit 1
 fi
 ROLE_ROW_USER_ID="$(jq -r '.[0].user_id // empty' < "$ROLE_BODY")"
 rm -f "$ROLE_BODY"
-
 if [[ "$ROLE_ROW_USER_ID" != "$USER_ID" ]]; then
-  echo -e "${RED}❌ user_roles.user_id weicht von user_profiles.id ab. Abbruch.${NC}"
-  exit 1
+  echo -e "${RED}❌ user_roles.user_id weicht von user_profiles.id ab. Abbruch.${NC}"; exit 1
 fi
 
 # ---- Supabase: Projekt eintragen ----
@@ -161,7 +162,6 @@ PROJECT_JSON="$(jq -n \
   --arg startdatum "$STARTDATUM" \
   --arg owner_id "$USER_ID" \
   '{name:$name,status:$status,startdatum:$startdatum,owner_id:$owner_id}')"
-
 PRJ_BODY="$(mktemp)"
 PRJ_HTTP="$(curl -s -o "$PRJ_BODY" -w "%{http_code}" \
   -H "apikey: $SUPABASE_SERVICE_ROLE" \
@@ -170,12 +170,10 @@ PRJ_HTTP="$(curl -s -o "$PRJ_BODY" -w "%{http_code}" \
   -H "Prefer: return=representation" \
   -d "$PROJECT_JSON" \
   "${SUPABASE_URL}/rest/v1/projects")"
-
 if [[ ! "$PRJ_HTTP" =~ ^20[01]$ ]]; then
   echo -e "${RED}❌ Projekt-Insert fehlgeschlagen (HTTP $PRJ_HTTP):${NC} $(cat "$PRJ_BODY")"
   rm -f "$PRJ_BODY"; exit 1
 fi
-
 PROJECT_ID="$(jq -r '.[0].id // empty' < "$PRJ_BODY")"
 rm -f "$PRJ_BODY"
 [ -n "$PROJECT_ID" ] || { echo -e "${RED}❌ Supabase hat keine Projekt-ID zurückgegeben.${NC}"; exit 1; }
@@ -188,7 +186,6 @@ MILESTONE_JSON="$(jq -n \
   --arg due_date "$DUE_DATE" \
   --arg status "$MILESTONE_STATUS" \
   '{project_id:$project_id,title:$title,description:$description,due_date:$due_date,status:$status}')"
-
 MS_BODY="$(mktemp)"
 MS_HTTP="$(curl -s -o "$MS_BODY" -w "%{http_code}" \
   -H "apikey: $SUPABASE_SERVICE_ROLE" \
@@ -197,12 +194,10 @@ MS_HTTP="$(curl -s -o "$MS_BODY" -w "%{http_code}" \
   -H "Prefer: return=representation" \
   -d "$MILESTONE_JSON" \
   "${SUPABASE_URL}/rest/v1/milestones")"
-
 if [[ ! "$MS_HTTP" =~ ^20[01]$ ]]; then
   echo -e "${RED}❌ Milestone-Insert fehlgeschlagen (HTTP $MS_HTTP):${NC} $(cat "$MS_BODY")"
   rm -f "$MS_BODY"; exit 1
 fi
-
 MS_ID="$(jq -r '.[0].id // empty' < "$MS_BODY")"
 rm -f "$MS_BODY"
 [ -n "$MS_ID" ] || { echo -e "${RED}❌ Supabase hat keine Milestone-ID zurückgegeben.${NC}"; exit 1; }
