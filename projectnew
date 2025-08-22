@@ -28,7 +28,7 @@ get_github_token() {
     read -s -p "🔑 GitHub-Token (repo+workflow): " t; echo
     security add-generic-password -a "$USER" -s "$KEYCHAIN_GH" -w "$t" -U >/dev/null 2>&1 || true
     echo -e "${CYAN}💾 Token im macOS Keychain gespeichert.${NC}"
-  end
+  fi
   echo -n "$t"
 }
 
@@ -103,7 +103,7 @@ git branch -M main
 git push -u origin main
 REPO_URL="https://github.com/$USERNAME/$PROJECT_NAME"
 
-# ---- Supabase: Früher Auth-Ping (klare Fehlermeldung bei Mismatch) ----
+# ---- Supabase: Früher Auth-Ping ----
 AUTH_HTTP="$(curl -s -o /dev/null -w "%{http_code}" \
   -H "apikey: $SUPABASE_SERVICE_ROLE" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
@@ -131,7 +131,7 @@ USER_ID="$(jq -r '.[0].id // empty' < "$USER_BODY")"
 rm -f "$USER_BODY"
 [ -n "$USER_ID" ] || { echo -e "${RED}❌ Kein user_profiles Eintrag für '$SUPABASE_USER_MAIL'. Bitte zuerst im Frontend registrieren.${NC}"; exit 1; }
 
-# ---- user_roles absichern (Upsert), damit beide FKs von projects.owner_id erfüllt sind ----
+# ---- user_roles absichern (Upsert) ----
 read -r -p "👤 Rolle für den Projekt-Owner [student|tutor|owner] (Default: student): " OWNER_ROLE
 OWNER_ROLE="${OWNER_ROLE:-student}"
 
