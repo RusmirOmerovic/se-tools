@@ -1,60 +1,7 @@
 # 🧰 se-tools
 
 **se-tools** ist ein leichtgewichtiges Tool-Set aus Bash-Skripten, um neue Projekte in Sekunden anzulegen, sicher zu pushen, Repos zu löschen und standardisierte Merges/Deploys durchzuführen.  
-Es richtet sich an DevOps-/DevSecOps-Workflows mit GitHub.
-
-## Tipp:
-öffne deine Konfigurationsdatei .zshrc/.bashrc im Terminal mit nano .zshrc/.bashrc und prüfe die enthaltenen Pfade. 
-Der Pfad für die Befehle von se-tools sollte so aussehen: 
-```
-#se-tools global Befehle ausführen
-export PATH="$HOME/se-tools:$PATH"
-
-```
-Falls nicht, trage das genau so ein!
-
--> control(^) + O - **Speichern** ; Enter - **Bestätigen** ; control(^) + X - **Schließen**
-
-
--> die Einrichtung ist abgeschlossen! ✅
-
--> Beim Erstellen deines ersten Projekts mit "newproject" wirst du einmalig aufgefordert deinen Token einzugeben. 
-   Dazu gehts du in deinem GitHub-Account auf settings/developer-settings/generate-new-token 
-   -> "classic tokens" & Rechte: repo, workflow, read:org, delete_repo
-   -> Token generieren, kopieren und im Terminal einfügen, dann 'Enter' drücken
-
-   FERTIG ☑️ - das Token wird versteckt in einer Hintergrund-Datei verschlüsselt gespeichert (~/Library/Keychains/)
-               Token lesen mittels Passwort mit Bash-Befehl im Terminal:
-               ```
-               security find-generic-password -s se-tools-gh-token -w
-               ```
-
-(ODER: einfach im "Schlüsselbund" mit se-tools suchen)
-
-
-
-   ⏳ die Gültigkeitsdauer wird ständig überprüft und vor dem Ablauf von 90 Tagen, wirst du erneut aufgefordert 
-      das Token zu erneuern. Dann wiederholst du den Prozess und kopierst wieder das Token in die Abfrage! 
-
-
-
-> ## Kurzfassung der Befehle:  
-> - `newproject` erzeugt ein neues Repo aus einer Template-Vorlage  
-> - `pushrepo` pusht sicher mit Checks  
-> - `deleterepo` räumt lokal/remote auf  
-> - `merge-main` / `merge-test` automatisieren Merges  
-> - `projectnew` integriert dein Projekt zusätzlich in Supabase (Projekte & Meilensteine)  
-
-👉 **Alle Details & Anleitungen findest du im [Wiki](https://github.com/RusmirOmerovic/se-tools/wiki).**
-
-
----
-
-## Voraussetzungen
-
-- **Git** und **GitHub CLI (`gh`)**  
-- **Homebrew** (empfohlen für Installation auf macOS)  
-- Optional: **Supabase CLI** (für `projectnew`)  
+Es richtet sich an DevOps-/DevSecOps-Workflows mit GitHub & Supabase.
 
 ---
 
@@ -70,26 +17,71 @@ source ~/.zshrc
 
 ---
 
+## Voraussetzungen
+
+- **Git**  
+- **GitHub CLI (`gh`)** → ersetzt komplett das alte Token-Handling  
+- Optional: **Supabase CLI** (für Edge-Functions/Testing)  
+
+---
+
 ## Erste Schritte
 
-1. Mit GitHub anmelden:
+1. **GitHub einrichten (einmalig):**
    ```bash
    gh auth login
+   gh auth status
    ```
+   Danach brauchst du kein Token mehr – alle Befehle nutzen automatisch deine GitHub-Session.
 
-2. Neues Projekt starten:
+2. **Projekt anlegen (GitHub + Supabase):**
    ```bash
-   newproject meinProjekt
+   projectnew meinProjekt
    ```
+   - Du wirst nach deiner **E-Mail + Passwort** gefragt (wie im Frontend)  
+   - Repo wird automatisch aus Template erstellt und gepusht  
+   - Projekt + Meilenstein wird in Supabase angelegt  
 
-3. Code committen & pushen:
+3. **Weitere Standardbefehle:**
    ```bash
-   pushrepo
+   newproject <name>   # nur GitHub-Repo anlegen
+   pushrepo            # commits sicher pushen
+   deleterepo          # Repo lokal & remote löschen
+   merge-main          # Feature → main mergen
+   merge-test          # Feature → test mergen
    ```
 
 ---
 
-## Mehr Informationen
+## Was sich geändert hat (2025)
 
-👉 Detaillierte Dokumentation, Token-Handling und Supabase-Integration findest du im  
+- 🔑 **Kein GitHub-Token** mehr nötig – alles läuft über `gh`.  
+- 🔐 **Keine Supabase-Secrets** mehr im Code – User loggt sich mit eigenen Credentials ein.  
+- 🌍 **Skalierbar**: Jeder registrierte User kann Projekte sowohl im Frontend (Vercel) als auch über CLI erstellen.  
+
+---
+
+## Konfiguration der Shell
+
+Öffne deine Konfigurationsdatei `.zshrc` oder `.bashrc` im Terminal:
+```bash
+nano ~/.zshrc
+```
+
+Füge den Pfad zu den Skripten hinzu:
+```bash
+# se-tools global Befehle
+export PATH="$HOME/se-tools:$PATH"
+```
+
+Dann speichern (**Ctrl+O** → Enter), schließen (**Ctrl+X**) und Shell neu laden:
+```bash
+source ~/.zshrc
+```
+
+---
+
+## Mehr Infos
+
+👉 Detaillierte Workflows, Edge-Function-Integration und Beispiele findest du im  
 ➡️ [se-tools Wiki](https://github.com/RusmirOmerovic/se-tools/wiki)
