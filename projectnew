@@ -104,22 +104,64 @@ fi
 ACCESS_TOKEN="$(jq -r '.access_token // empty' /tmp/login.json)"
 [ -n "$ACCESS_TOKEN" ] || { echo -e "${RED}❌ Kein access_token erhalten.${NC}"; cat /tmp/login.json; exit 1; }
 
+# ======== Interaktive Eingaben mit Defaults ========
+# macOS (BSD-date) ODER Linux (GNU-date) +30 Tage
+DEFAULT_DUE="$(date -v+30d +%F 2>/dev/null || date -d '+30 days' +%F)"
+TODAY="$(date +%F)"
+
+# kleine Helper: read mit Default (zsh & bash)
+read_default() {
+  local __prompt="$1" __varname="$2" __default="$3" __input=""
+  if [ -n "${ZSH_VERSION-}" ]; then
+    read -r "${__varname}?${__prompt} [${__default}]: " || true
+    eval "__input=\"\${${__varname}:-}\""
+  else
+    read -r -p "${__prompt} [${__default}]: " __input || true
+  fi
+  eval "$__varname=\"\${__input:-$__default}\""
+}
+
+echo -e "${CYAN}→ Angaben zum Projekt/Meilenstein${NC}"
+
+# Status mit Default
+read_default "📌 Status (angemeldet|geplant|laufend|abgeschlossen)" MILESTONE_STATUS "geplant"
+
+# Team (optional)
+read_default "👥 Team (frei Text, optional)" TEAM_NAMES ""
+
+# Beschreibung (optional)
+read_default "📝 Beschreibung (optional)" DESCRIPTION ""
+
+# Fälligkeitsdatum (YYYY-MM-DD) mit Default +30 Tage
+while true; do
+  read_default "📅 Fälligkeitsdatum (YYYY-MM-DD)" DUE_DATE "$DEFAULT_DUE"
+  if [[ "$DUE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then break; fi
+  echo -e "${RED}❌ Ungültiges Datum. Bitte Format YYYY-MM-DD verwenden.${NC}"
+done
+
+# Startdatum (heute) – falls du es setzen willst
+START_DATE="$TODAY"
+
+
 # ========= Projekt via Vercel-API -> Edge Function anlegen =========
 echo -e "${CYAN}→ Supabase: projectnew (über Vercel -> Edge Function) …${NC}"
+
 PAYLOAD="$(jq -n \
-  --arg name "$PROJECT_NAME" \
+  --arg name   "$PROJECT_NAME" \
   --arg status "$MILESTONE_STATUS" \
-  --arg start  "$(date +%F)" \
+  --arg start  "$START_DATE" \
   --arg team   "$TEAM_NAMES" \
   --arg due    "$DUE_DATE" \
-  --arg repo   "$REPO_URL" \
+  --arg desc   "$DESCRIPTION" \
+  --arg repo   "${REPO_URL:-}" \
   '{
      name: $name,
-     status: ($status|length>0 ? $status : null),
+     status: ( ($status|length)>0 ? $status : "geplant" ),
      startdatum: $start,
-     team: ($team|length>0 ? $team : null),
-     due_date: ($due|length>0 ? $due : null),
-     repo_url: ($repo|length>0 ? $repo : null)
+     team: ( ($team|length)>0 ? $team : null ),
+     description: ( ($desc|length)>0 ? $desc : null ),
+     due_date: ( ($due|length)>0 ? $due : null ),
+     repo_url: ( ($repo|length)>0 ? $repo : null )
    }')"
 
 PR_HTTP=$(curl -s -o /tmp/projectnew.json -w "%{http_code}" \
