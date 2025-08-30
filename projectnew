@@ -39,16 +39,6 @@ PROJECT_NAME="$1"
 ZIELORDNER="$PWD/$PROJECT_NAME"
 [ -d "$ZIELORDNER" ] && { echo -e "${RED}❌ Ordner '$ZIELORDNER' existiert bereits.${NC}"; exit 1; }
 
-# ========= User-Metadaten abfragen =========
-read -r -p "👥 Teammitglieder (frei Text): " TEAM_NAMES
-DEFAULT_DUE="$(date -v+14d +%F 2>/dev/null || date -d '+14 days' +%F)"
-read -r -p "📅 Fälligkeitsdatum [YYYY-MM-DD] (Default ${DEFAULT_DUE}): " DUE_DATE
-DUE_DATE="${DUE_DATE:-$DEFAULT_DUE}"
-[[ "$DUE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo -e "${RED}❌ Datum muss YYYY-MM-DD sein.${NC}"; exit 1; }
-echo -e "📌 Status wählen: [angemeldet|geplant|laufend|abgeschlossen]"
-read -r -p "Status (Default: geplant): " MILESTONE_STATUS
-MILESTONE_STATUS="${MILESTONE_STATUS:-geplant}"
-
 # ========= GitHub-Repo aus Template erstellen =========
 echo -e "${CYAN}→ GitHub Repo anlegen & pushen …${NC}"
 GITHUB_TOKEN="$(get_github_token)"
