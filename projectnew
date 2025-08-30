@@ -19,18 +19,12 @@ need git; need curl; need jq
 command -v security >/dev/null 2>&1 || echo -e "${CYAN}ℹ️ security (Keychain) nicht gefunden – GH-Token wird dann nur per Prompt gelesen.${NC}"
 
 get_github_token() {
-  local t=""
-  if command -v security >/dev/null 2>&1 && security find-generic-password -s "$KEYCHAIN_GH" >/dev/null 2>&1; then
-    t="$(security find-generic-password -s "$KEYCHAIN_GH" -w | tr -d '\r\n')"
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    echo -n "$GITHUB_TOKEN"
+  else
+    echo -e "${RED}❌ Kein GitHub-Token gefunden. Bitte zuerst 'gh auth login' ausführen.${NC}"
+    exit 1
   fi
-  if [[ -z "$t" ]]; then
-    read -r -s -p "🔑 GitHub-Token (scope: repo, workflow): " t; echo
-    if command -v security >/dev/null 2>&1; then
-      security add-generic-password -a "$USER" -s "$KEYCHAIN_GH" -w "$t" -U >/dev/null 2>&1 || true
-      echo -e "${CYAN}💾 GH-Token im macOS Keychain gespeichert.${NC}"
-    fi
-  fi
-  echo -n "$t"
 }
 
 # ========= Eingaben prüfen =========
