@@ -158,12 +158,12 @@ PAYLOAD="$(jq -n \
   --arg repo   "${REPO_URL:-}" \
   '{
      name: $name,
-     status: ( ($status|length)>0 ? $status : "geplant" ),
+     status: (($status | select(length>0)) // "geplant"),
      startdatum: $start,
-     team: ( ($team|length)>0 ? $team : null ),
-     description: ( ($desc|length)>0 ? $desc : null ),
-     due_date: ( ($due|length)>0 ? $due : null ),
-     repo_url: ( ($repo|length)>0 ? $repo : null )
+     team:        ($team | select(length>0)),
+     description: ($desc | select(length>0)),
+     due_date:    ($due  | select(length>0)),
+     repo_url:    ($repo | select(length>0))
    }')"
 
 PR_HTTP=$(curl -s -o /tmp/projectnew.json -w "%{http_code}" \
