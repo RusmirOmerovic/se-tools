@@ -65,16 +65,19 @@ gh-import-backlog --owner <USER> \
 - Felder: Phase, Nr, Prioriät, Status werden gesetzt
 
 📨 Sicher pushen mit "pushrepo"-Befehl
-
+```bash
 pushrepo -m "Update Backlog & tools"   # sicher committen + rebase-pull + push
 pushrepo -n                            # Dry-run
 pushrepo -q -m "silent push"           # leiser Modus ohne Konsolen-Output
-
+```
 🔍 Flags erklärt
-Flag	                  Bedeutung	                        Beispiel
+```bash
+FLAG	                 BEDEUTUNG                       BEISPIEL
+
 -m	            Commit-Nachricht direkt angeben	         pushrepo -m "Update Scripts"
 -n	            Dry-Run: Vorschau ohne Änderung           pushrepo -n
 -q	            Quiet: minimale Ausgabe	                  pushrepo -q -m "silent push"
+```
 ---
 
 ## Was sich geändert hat (2025)
