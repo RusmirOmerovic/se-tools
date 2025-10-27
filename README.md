@@ -34,13 +34,15 @@ source ~/.zshrc
    ```
    Danach brauchst du kein Token mehr – alle Befehle nutzen automatisch deine GitHub-Session.
 
-2. **Projekt anlegen (GitHub + Supabase):**
+2. **Neues Projekt anlegen (GitHub + Supabase):**
    ```bash
    projectnew meinProjekt
    ```
+   - Voraussetzung: erstelle deine Zugangsdaten zunächst 
+      bei https://frontend-se-cyan.vercel.app/
    - Du wirst nach deiner **E-Mail + Passwort** gefragt (wie im Frontend)  
    - Repo wird automatisch aus Template erstellt und gepusht  
-   - Projekt + Meilenstein wird in Supabase angelegt  
+   - Projekt + Meilenstein wird in Supabase Datenbank angelegt  
 
 3. **Weitere Standardbefehle:**
    ```bash
@@ -50,7 +52,29 @@ source ~/.zshrc
    merge-main          # Feature → main mergen
    merge-test          # Feature → test mergen
    ```
+### 🧩 Backlog → GitHub Projects (Issues)
+```bash
+gh-import-backlog --owner <USER> \
+  --repo <USER/REPO> \
+  --project "Projektplan SLA-Vorlage" \
+  --csv docs/Backlog_SLA-Vorlage.csv \
+  --mode issues
+  ```
 
+- Erstellt pro CSV-Zeile ein Issue und fügt es dem Projekt hinzu
+- Felder: Phase, Nr, Prioriät, Status werden gesetzt
+
+📨 Sicher pushen mit "pushrepo"-Befehl
+
+pushrepo -m "Update Backlog & tools"   # sicher committen + rebase-pull + push
+pushrepo -n                            # Dry-run
+pushrepo -q -m "silent push"           # leiser Modus ohne Konsolen-Output
+
+🔍 Flags erklärt
+Flag	                  Bedeutung	                        Beispiel
+-m	            Commit-Nachricht direkt angeben	         pushrepo -m "Update Scripts"
+-n	            Dry-Run: Vorschau ohne Änderung           pushrepo -n
+-q	            Quiet: minimale Ausgabe	                  pushrepo -q -m "silent push"
 ---
 
 ## Was sich geändert hat (2025)
