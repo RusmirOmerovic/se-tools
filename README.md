@@ -52,9 +52,9 @@ source ~/.zshrc
    merge-main          # Feature → main mergen
    merge-test          # Feature → test mergen
    ```
-### 🧩 Backlog anlegen → GitHub Projects (Issues)
+## 🧩 Backlog anlegen → GitHub Projects (Issues)
 
-## 📄 Beispiel: CSV für Backlog-Import
+### 📄 Beispiel: CSV für Backlog-Import
 
 Lege im Projektordner eine Datei `docs/Backlog_<Projektname>.csv` an:
 
