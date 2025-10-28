@@ -52,17 +52,40 @@ source ~/.zshrc
    merge-main          # Feature → main mergen
    merge-test          # Feature → test mergen
    ```
-### 🧩 Backlog → GitHub Projects (Issues)
+### 🧩 Backlog anlegen → GitHub Projects (Issues)
+
+## 📄 Beispiel: CSV für Backlog-Import
+
+Lege im Projektordner eine Datei `docs/Backlog_<Projektname>.csv` an:
+
+```csv
+Phase,Nr,Aufgabe,Status,Priorität,Beschreibung
+1 - Vorbereitung,1,Zotero installieren & konfigurieren,Todo,Hoch,Installiere Zotero und richte APA 7 ein
+1 - Vorbereitung,2,Github-Repo anlegen,Done,Hoch,Repository mit README und Lizenz erstellen
+2 - Recherche,3,ITIL-Grundlagen recherchieren,Todo,Mittel,Fokus auf SLA/OLA/UC Unterschiede
+
+Dann importieren mit:
+
 ```bash
 gh-import-backlog --owner <USER> \
   --repo <USER/REPO> \
   --project "Projektplan SLA-Vorlage" \
   --csv docs/Backlog_SLA-Vorlage.csv \
-  --mode issues
+  --mode issues --update
   ```
 
 - Erstellt pro CSV-Zeile ein Issue und fügt es dem Projekt hinzu
 - Felder: Phase, Nr, Prioriät, Status werden gesetzt
+
+
+➡️ Tipp:
+--create-project legt automatisch ein neues GitHub-Project an
+--update aktualisiert vorhandene Issues
+CSV kann direkt aus Excel oder Google Sheets exportiert werden (UTF-8, Komma-getrennt)
+
+[](images/table-view.png)
+
+[](images/kanban-view.png)
 
 📨 Sicher pushen mit "pushrepo"-Befehl
 ```bash
