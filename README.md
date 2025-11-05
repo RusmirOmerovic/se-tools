@@ -113,7 +113,7 @@ Dann importieren mit:
 ```bash
 gh-import-backlog --owner <USER> \
   --repo <USER/REPO> \
-  --project "Projektplan SLA-Vorlage" \
+  --project <NR> \
   --csv docs/Backlog_SLA-Vorlage.csv \
   --mode issues --update
   ```
