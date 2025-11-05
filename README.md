@@ -90,7 +90,7 @@ NUMBER  TITLE              STATE  ID
 gh-import-backlog \
   --owner RusmirOmerovic \
   --repo RusmirOmerovic/Rechnungsprogramm \
-  --project "Rechnungsprogramm" \
+  --project [hier Projektnummer! z.B. "8"] \ # also --project 8
   --csv issues_rechnungsprogramm.csv \
   --mode issues --update
 ```
