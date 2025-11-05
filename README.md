@@ -54,6 +54,49 @@ source ~/.zshrc
    ```
 ## 🧩 Backlog anlegen → GitHub Projects (Issues)
 
+### 📋 GitHub Project & Backlog Import (Kanban Setup)
+Um das Kanban-Board automatisch mit den Issues aus der CSV zu befüllen, müssen einmalig die GitHub-Projektrechte aktualisiert und ein Projekt angelegt werden.
+
+1️⃣ GitHub CLI Token aktualisieren
+
+Falls beim Erstellen eines Projekts die Fehlermeldung
+error: your authentication token is missing required scopes [project read:project]
+erscheint, führe aus:
+```bash
+gh auth refresh -s project,read:project
+```
+
+Danach im Browser bestätigen, um die neuen Scopes zu aktivieren.
+
+2️⃣ Neues GitHub-Projekt anlegen
+Erstelle ein neues Project (v2) unter deinem User (nicht im Repo):
+´´´bash
+gh project create \
+  --owner RusmirOmerovic \
+  --title "Rechnungsprogramm"
+´´´
+Projektliste prüfen:
+´´´bash
+gh project list --owner @me
+´´´
+
+Beispielausgabe:
+´´´
+NUMBER  TITLE              STATE  ID
+8       Rechnungsprogramm  open   PVT_kwHOCOnMRM4BHWDj
+´´´
+3️⃣ Backlog (CSV) importieren (Beispiel von mir)
+´´´bash
+gh-import-backlog \
+  --owner RusmirOmerovic \
+  --repo RusmirOmerovic/Rechnungsprogramm \
+  --project "Rechnungsprogramm" \
+  --csv issues_rechnungsprogramm.csv \
+  --mode issues --update
+´´´
+Die Issues werden automatisch erstellt und dem Project „Rechnungsprogramm“ zugewiesen.
+
+
 ### 📄 Beispiel: CSV für Backlog-Import
 
 Lege im Projektordner eine Datei `docs/Backlog_<Projektname>.csv` an:
